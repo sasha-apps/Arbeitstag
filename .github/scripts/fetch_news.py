@@ -35,6 +35,7 @@ FEEDS = [
 ]
 OP_FEEDS = [gnews('"One Piece" Kapitel when:21d'), gnews('"One Piece" chapter when:21d', "en")]
 MANGAPLUS = "https://mangaplus.shueisha.co.jp/titles/100020"
+SKIP_RX = r"^(Entdecken Sie|Aktuelle Pressemitteilungen|Newsletter|Podcast:)|\((?:Mo|Di|Mi|Do|Fr|Sa|So)\.,\s*\d{1,2}\.\d{1,2}\.\d{4}"
 PLACE_RX = {"Herford": r"herford", "Melle": r"\bmelle\b|meller", "Bielefeld": r"bielefeld", "Osnabrück": r"osnabr[üu]c?k"}
 UPCOMING = r"spoiler|leak|predict|preview|vorschau|raws?\b|scans?\b|erscheint|release date|release time|when does|wann|countdown|delay|break|pause|verschoben|next week|nächste woche|will be"
 
@@ -112,6 +113,8 @@ def main(out_path):
                     continue
                 title, src = e["title"], name
                 if place and not re.search(PLACE_RX[place], title, re.I):  # Regionales muss den Ort nennen
+                    continue
+                if re.search(SKIP_RX, title):  # Service-Seiten und Veranstaltungskalender
                     continue
                 if name is None:  # Google News: "Titel - Quelle"
                     m = re.match(r"^(.*)\s+-\s+(.{2,60})$", title)
