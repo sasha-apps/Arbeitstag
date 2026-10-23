@@ -112,8 +112,6 @@ def main(out_path):
                 if NOW - d > timedelta(hours=MAX_AGE_H[cat]) or d - NOW > timedelta(hours=2):
                     continue
                 title, src = e["title"], name
-                if place and not re.search(PLACE_RX[place], title, re.I):  # Regionales muss den Ort nennen
-                    continue
                 if re.search(SKIP_RX, title):  # Service-Seiten und Veranstaltungskalender
                     continue
                 if name is None:  # Google News: "Titel - Quelle"
@@ -121,6 +119,8 @@ def main(out_path):
                     if m:
                         title, src = m.group(1).strip(), m.group(2).strip()
                     src = e["source"] or src or "Google News"
+                if place and (len(title) < 20 or not re.search(PLACE_RX[place], title, re.I)):  # Regionales muss den Ort nennen
+                    continue
                 key = re.sub(r"\W+", "", title.lower())[:80]
                 if key in seen:
                     continue
