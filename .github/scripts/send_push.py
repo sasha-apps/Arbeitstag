@@ -109,9 +109,11 @@ def put_file(name, obj, sha):
 
 
 # ---------- Verkehr (Autobahn GmbH des Bundes) ----------
-DIRS = {"W": r"amsterdam|osnabr[üu]ck|rheine|bad bentheim|hengelo|niederlande|lotte|ibbenb[üu]ren|salzbergen",
-        "E": r"hannover|bad oeynhausen|l[öo]hne|b[üu]nde|kirchlengern|herford|minden"}
 NAMES = {"W": "Osnabrück", "E": "Bad Oeynhausen"}
+# Orte entlang der A30 von West nach Ost (für die Fahrtrichtung aus „X -> Y“)
+A30_ORDER = ["amsterdam", "hengelo", "oldenzaal", "bad bentheim", "gildehaus", "schüttorf", "salzbergen", "rheine", "hörstel",
+             "ibbenbüren", "lotte", "osnabrück", "hasbergen", "hellern", "sutthausen", "nahne", "gesmold", "melle", "riemsloh",
+             "bruchmühlen", "rödinghausen", "kirchlengern", "hiddenhausen", "bünde", "löhne", "bad oeynhausen", "hannover"]
 
 
 def fetch_json(url):
@@ -120,33 +122,45 @@ def fetch_json(url):
         return json.loads(r.read())
 
 
-def item_dirs(text):
-    t = text.lower()
-    if re.search(r"beide[nr]? (fahrt)?richtung", t):
-        return {"W", "E"}
-    found = set()
-    for m in re.finditer(r"(?:richtung|->|→|>)\s*([a-zäöüß .-]{3,40})", t):
-        for k, rx in DIRS.items():
-            if re.match(r"\s*(?:" + rx + ")", m.group(1)):
-                found.add(k)
-    return found or {"W", "E"}
+def _pos(name):
+    n = name.lower()
+    for i, k in enumerate(A30_ORDER):
+        if k in n:
+            return i
+    return None
 
 
-def between(it):
-    for line in it.get("description") or []:
-        m = re.search(r"zwischen\s+(.+?)\s+und\s+(.+?)(?:[,.;]|$)", line, re.I)
-        if m:
-            return f"zwischen {m.group(1).strip()} und {m.group(2).strip()}"
-    t = it.get("title") or ""
-    if "|" in t:
-        t = t.split("|", 1)[1]
-    t = re.sub(r"\bAS\s+", "", t).strip()
-    t = re.sub(r"\s*\(\d+\)", "", t)
-    return ("bei " + t) if t else ""
+def item_dirs(it):
+    """Fahrtrichtung: W (Richtung Osnabrück) oder E (Richtung Bad Oeynhausen), unbekannt = beide."""
+    sub = (it.get("subtitle") or "").strip()
+    m = re.match(r"^(.+?)\s*(?:->|→)\s*(.+)$", sub)
+    if m:
+        a, b = _pos(m.group(1)), _pos(m.group(2))
+        if a is not None and b is not None and a != b:
+            return {"E"} if b > a else {"W"}
+    text = " ".join([it.get("title") or "", sub] + list(it.get("description") or [])).lower()
+    m = re.search(r"\b(?:a\d+\s+)?([a-zäöüß .-]{3,30}?)\s+richtung\s+([a-zäöüß .-]{3,30})", text)
+    if m:
+        a, b = _pos(m.group(1)), _pos(m.group(2))
+        if a is not None and b is not None and a != b:
+            return {"E"} if b > a else {"W"}
+    return {"W", "E"}
+
+
+def section(it):
+    """„X - Y“ aus dem Titel „A30 | X - Y“."""
+    m = re.match(r"^\s*A\d+\s*\|\s*(.+?)\s+-\s+(.+?)\s*$", it.get("title") or "")
+    return (m.group(1).strip(), m.group(2).strip()) if m else None
 
 
 def describe(it, kind):
-    where = between(it)
+    sec = section(it)
+    if sec:
+        where = f"zwischen {sec[0]} und {sec[1]}"
+    else:
+        t = re.sub(r"^\s*A\d+\s*[-|]\s*", "", it.get("title") or "")
+        t = re.sub(r"\s*-\s*AkD\s*\d+\s*$", "", t).replace(" - ", ": ", 1)
+        where = (": " + (t[:90].rsplit(" ", 1)[0] + "…" if len(t) > 90 else t)) if t else ""
     if kind == "closure" or str(it.get("isBlocked")).lower() == "true":
         word = "Sperrung"
     elif kind == "warning":
@@ -154,7 +168,7 @@ def describe(it, kind):
         word = "Stau" if ("STATIONARY" in typ or "QUEUING" in typ or "SLOW" in typ or not typ) else "Verkehrsmeldung"
     else:
         word = "Baustelle"
-    s = f"{word} {where}".strip()
+    s = (word + (" " + where if where.startswith("zwischen") else where)).strip()
     try:
         d = int(float(it.get("delayTimeValue") or 0))
     except Exception:
@@ -164,20 +178,26 @@ def describe(it, kind):
     return s
 
 
+def on_route(it, places):
+    """Liegt die Meldung auf der eingetragenen Strecke? Bei „X - Y“ müssen beide Enden zur Strecke gehören."""
+    match = lambda s: any(p.lower() in s.lower() for p in places)
+    sec = section(it)
+    if sec:
+        return match(sec[0]) and match(sec[1])
+    text = " ".join([it.get("title") or "", it.get("subtitle") or ""] + list(it.get("description") or []))
+    return match(text)
+
+
 def traffic(cfg, direction, now):
     road = re.sub(r"[^A-Za-z0-9]", "", (cfg or {}).get("road") or "A30").upper()
     places = [p.strip() for p in re.split(r"[,;]", (cfg or {}).get("places") or "") if len(p.strip()) >= 3]
     if not places:
         return None
-    rx = re.compile("|".join(re.escape(p) for p in places), re.I)
     hits = {"warning": [], "closure": [], "roadworks": []}
     for kind in hits:
         data = fetch_json(f"{AUTOBAHN}/{road}/services/{kind}")
         for it in data.get(kind) or []:
-            text = " ".join([it.get("title") or "", it.get("subtitle") or ""] + list(it.get("description") or []))
-            if not rx.search(text):
-                continue
-            if it.get("future") is True:
+            if it.get("future") is True or not on_route(it, places):
                 continue
             st = it.get("startTimestamp")
             if st:
@@ -187,7 +207,7 @@ def traffic(cfg, direction, now):
                         continue
                 except Exception:
                     pass
-            if direction not in item_dirs(text):
+            if direction not in item_dirs(it):
                 continue
             line = describe(it, kind)
             if line and line not in hits[kind]:
@@ -261,9 +281,8 @@ def probe():
         data = fetch_json(f"{AUTOBAHN}/A30/services/{kind}").get(kind) or []
         print(f"{kind}: {len(data)} Einträge")
         for it in data[:4]:
-            text = " ".join([it.get("title") or "", it.get("subtitle") or ""] + list(it.get("description") or []))
             print("  Felder:", sorted(it.keys()))
-            print("  Titel:", it.get("title"), "| Untertitel:", it.get("subtitle"), "| Richtung erkannt:", sorted(item_dirs(text)))
+            print("  Titel:", it.get("title"), "| Untertitel:", it.get("subtitle"), "| Richtung erkannt:", sorted(item_dirs(it)))
             print("  Text:", describe(it, kind))
 
 
