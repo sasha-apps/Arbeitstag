@@ -125,6 +125,10 @@ textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;borde
 .syncbox p{margin:0;line-height:1.5}
 .syncbox .bad{color:var(--late)}
 .fld{display:flex;flex-direction:column;gap:4px}
+.edit .bell{display:flex;align-items:center;gap:10px;font-size:15px}
+.edit .bell input[type=checkbox]{width:auto;min-height:0;transform:scale(1.3)}
+.edit .bell input[type=time]{width:auto;flex:0 0 auto;min-height:40px;padding:6px 10px}
+.edit .bell input[type=time]:disabled{opacity:.4}
 .fld input{font-size:16px}
 .qr{background:#fff;border-radius:12px;padding:8px;width:min(260px,100%);align-self:center;color:#000;font-size:14px;text-align:center}
 .qr svg{display:block;width:100%;height:auto}
@@ -233,6 +237,8 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
   <div class="msg" id="bkMsg" role="status"></div>
   <h2 style="margin-top:6px">Abgleich iPhone ↔ iPad</h2>
   <div id="syncBox" class="syncbox"></div>
+  <h2 style="margin-top:6px">Benachrichtigungen</h2>
+  <div id="pushBox" class="syncbox"></div>
   <h2 style="margin-top:6px">Nachrichten</h2>
   <label class="switch"><span>Vorschaubilder laden<br><span class="sub">Bilder kommen direkt von den Servern der Zeitungen. Die sehen dabei deine IP-Adresse. Bilder verbrauchen etwas mehr mobile Daten.</span></span><input type="checkbox" id="imgToggle" checked></label>
   <p class="sub" style="margin:0" id="archInfo"></p>
@@ -270,7 +276,10 @@ function cleanTitle(s){s=s.replace(/\s+/g,' ').replace(/\s*[,;]\s*$/,'').replace
 function parse(input){
   let s=' '+input.trim()+' ',low=s.toLowerCase(),rule=null,due=null;
   const cut=(m)=>{const i=low.indexOf(m);if(i<0)return;s=s.slice(0,i)+' '+s.slice(i+m.length);low=s.toLowerCase()};
-  const t=todayISO();let m;
+  const t=todayISO();let m,time=null;
+  // Uhrzeit: „um 9“, „um 9:30“, „18.15 Uhr“, „7 Uhr“, „14:00“ (macht die Aufgabe zur Erinnerung)
+  if((m=low.match(/\s(?:um|gegen)\s+(\d{1,2})(?:[:.](\d{2}))?(?:\s*uhr)?(?=\s)/))||(m=low.match(/\s(\d{1,2})[:.](\d{2})\s*uhr(?=\s)/))||(m=low.match(/\s(\d{1,2}):(\d{2})(?=\s)/))||(m=low.match(/\s(\d{1,2})\s*uhr(?=\s)/))){
+    const h=+m[1],mi=m[2]?+m[2]:0;if(h<24&&mi<60){time=String(h).padStart(2,'0')+':'+String(mi).padStart(2,'0');cut(m[0])}}
   // monatlich (optional am 15.)
   if((m=low.match(/\s(?:alle\s+(\d+|zwei|drei|vier|sechs|zwölf)\s+monate|monatlich|jeden\s+monat|einmal\s+im\s+monat)(?:\s+(?:am\s+)?(\d{1,2})\.)?(?=\s)/))){
     const every=m[1]?toN(m[1]):1;const dom=m[2]?Math.min(31,Math.max(1,+m[2])):D(t).getDate();rule={type:'monthly',every,dom};cut(m[0])}
@@ -304,7 +313,7 @@ function parse(input){
       const wd=WDMAP[m[2]],cur=D(t).getDay();let n=(wd-cur+7)%7;if(m[1]&&n===0)n=7;due=addDays(t,n);cut(m[0])}
   }
   const title=cleanTitle(s);
-  return {title,rule,due}
+  return {title,rule,due,time}
 }
 function ruleLabel(r){if(!r)return '';
   if(r.type==='daily')return 'täglich';
@@ -380,6 +389,7 @@ function taskRow(x,mode){const t=todayISO();const row=mk('div','task'+(mode==='d
     if(x.due&&x.due<t)m.append(mk('span','late',x.rule?`fällig seit ${dayLabel(x.due)}`:`überfällig seit ${dayLabel(x.due)}`));
     else if(x.due&&x.due>t)m.append(mk('span',null,dayLabel(x.due)));
     if(x.rule)m.append(mk('span',null,'↻ '+ruleLabel(x.rule)));
+    if(x.bell)m.append(mk('span',null,'🔔'+(x.time?' '+x.time:'')));
     const st=streakNow(x,t);if(st>=2)m.append(mk('span','strk',`${st}× in Folge`));}
   else{m.append(mk('span',null,'erledigt '+new Date(x.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})));if(x.rule&&x.streak>=2)m.append(mk('span','strk',`${x.streak}× in Folge`))}
   if(m.childElementCount)b.append(m);
@@ -391,15 +401,19 @@ function editor(x){const box=mk('div','edit');
   const hint=mk('div','hint');const di=mk('input');di.type='date';di.value=x.due||'';di.setAttribute('aria-label','Datum');
   const upd=()=>{const p=ri.value.trim()?parse('x '+ri.value).rule:null;hint.textContent=ri.value.trim()?(p?'↻ '+ruleLabel(p):'Nicht verstanden. Versuch z. B. „jeden Montag“ oder „alle 3 Tage“.'):'Einmalige Aufgabe';di.parentElement&&(di.parentElement.hidden=!!p)};
   ri.oninput=upd;const dw=mk('div');dw.append(di);
+  const bw=mk('label','bell');const bc=mk('input');bc.type='checkbox';bc.checked=!!x.bell;const bt=mk('input');bt.type='time';bt.value=x.time||'';bt.setAttribute('aria-label','Uhrzeit der Erinnerung');
+  bw.append(bc,mk('span',null,'🔔 Erinnern'),bt);const bh=mk('div','hint');
+  const bupd=()=>{bt.disabled=!bc.checked;bh.textContent=bc.checked?(bt.value?`Erinnerung um ca. ${bt.value} Uhr`:'Ohne Uhrzeit: steht in der Übersicht um 6 und 15 Uhr (Mo–Fr)'):''};bc.onchange=bupd;bt.oninput=bupd;
   const row=mk('div','row');const sv=mk('button','primary small','Speichern');const tm=mk('button','small','Auf morgen');const dl=mk('button','ghost small danger','Löschen');
   sv.onclick=()=>{const tt=ti.value.trim();if(!tt){ti.focus();return}x.title=tt;const p=ri.value.trim()?parse('x '+ri.value).rule:null;
     if(ri.value.trim()&&!p){hint.textContent='Wiederholung nicht verstanden. Bitte anders formulieren oder leer lassen.';return}
+    x.bell=bc.checked;x.time=bt.value||null;if(!x.time)delete x.time;if(!x.bell)delete x.bell;
     const t=todayISO();if(p){const changed=JSON.stringify(p)!==JSON.stringify(x.rule);x.rule=p;if(changed){x.due=firstDue(p,t);x.done=false}}else{if(x.rule){x.rule=null;x.streak=0}x.due=di.value||null}
     openEdit=null;save();render();toast('Gespeichert')};
   tm.onclick=()=>{x.due=addDays(todayISO(),1);openEdit=null;save();render();toast('Auf morgen verschoben')};
   dl.onclick=()=>{if(!dl.dataset.arm){dl.dataset.arm=1;dl.textContent='Wirklich löschen?';setTimeout(()=>{if(dl.isConnected){delete dl.dataset.arm;dl.textContent='Löschen'}},3000);return}
     S.tasks=S.tasks.filter(k=>k.id!==x.id);openEdit=null;save();render();toast('Gelöscht')};
-  row.append(sv,tm,dl);box.append(ti,ri,hint,dw,row);setTimeout(upd,0);return box}
+  row.append(sv,tm,dl);box.append(ti,ri,hint,dw,bw,bh,row);setTimeout(()=>{upd();bupd()},0);return box}
 function finish(id,row,c){c.classList.add('on');c.disabled=true;const x=S.tasks.find(k=>k.id===id);
   const go=()=>{const e=complete(id);openEdit=null;render(true);
     const msg=x&&x.rule&&x.streak>=2?`Erledigt · ${x.streak}× in Folge`:'Erledigt';toast(msg,()=>{undo(e.id);render()})};
@@ -441,9 +455,10 @@ $('tglSoon').onclick=()=>{soonOpen=!soonOpen;render()};
 $('addIn').oninput=()=>{const v=$('addIn').value;const p=parse(v);const el=$('preview');el.replaceChildren();
   if(!v.trim())return;const t=todayISO();
   if(p.rule){const b=mk('b',null,'↻ '+ruleLabel(p.rule));el.append(b,` · erstes Mal ${dayLabel(firstDue(p.rule,t))}`)}
-  else if(p.due){el.append(mk('b',null,dayLabel(p.due)))}else el.append('für heute')};
+  else if(p.due){el.append(mk('b',null,dayLabel(p.due)))}else el.append('für heute');
+  if(p.time)el.append(` · 🔔 ${p.time}`)};
 $('addForm').onsubmit=e=>{e.preventDefault();const v=$('addIn').value;if(!v.trim())return;const p=parse(v);if(!p.title){$('addIn').focus();return}
-  const t=todayISO();const x={id:uid(),title:p.title,rule:p.rule,due:p.rule?firstDue(p.rule,t):p.due,streak:0,best:0,created:t};
+  const t=todayISO();const x={id:uid(),title:p.title,rule:p.rule,due:p.rule?firstDue(p.rule,t):p.due,streak:0,best:0,created:t};if(p.time){x.time=p.time;x.bell=true}
   S.tasks.push(x);save();$('addIn').value='';$('preview').replaceChildren();render();
   const row=document.querySelector(`.task[data-id="${x.id}"]`);if(row){row.classList.add('fresh')}
   else{toast(`Gespeichert für ${dayLabel(x.due)}`);if(!soonOpen){soonOpen=true;render()}}};
@@ -469,7 +484,7 @@ function restore(txt){const m=$('bkMsg');try{const d=JSON.parse(txt);if(d.app!==
   catch(e){m.className='msg err';m.textContent='Das ist keine gültige ArbeitsTag-Sicherung.'}}
 let restoreArm=false;
 function armRestore(btn,fn){if(!S.demo&&S.tasks.length&&!restoreArm){restoreArm=true;const o=btn.textContent;btn.textContent='Ersetzt alle aktuellen Aufgaben. Nochmal tippen';setTimeout(()=>{restoreArm=false;btn.textContent=o},3500);return}restoreArm=false;fn()}
-$('menuBtn').onclick=()=>{bkInfo();$('archInfo').textContent=`Auf diesem Gerät gespeichert: ${ARCH.size} Meldungen der letzten 4 Wochen, ${FAVS.size} Favoriten.`;$('sheet').hidden=false;renderSync()};
+$('menuBtn').onclick=()=>{bkInfo();$('archInfo').textContent=`Auf diesem Gerät gespeichert: ${ARCH.size} Meldungen der letzten 4 Wochen, ${FAVS.size} Favoriten.`;$('sheet').hidden=false;renderSync();PU.loaded=false;PU.msg='';renderPush()};
 function closeSheet(){$('sheet').hidden=true;stopScan();SY.ui='';SY.form={};SY.msg=''}
 $('sheetClose').onclick=closeSheet;$('sheet').onclick=e=>{if(e.target===$('sheet'))closeSheet()};
 $('bkSave').onclick=saveBackup;$('bkOpen').onclick=e=>armRestore(e.currentTarget,()=>$('bkFile').click());
@@ -658,7 +673,8 @@ async function syncNow(){if(!CFG||!CFG.key||IN_ARTIFACT)return;if(SY.busy){SY.ag
       if(remote&&canon(merged)===canon(normP(remote)))break;
       if(await remotePut(CFG,await seal(merged,key,CFG.salt),rem&&rem.sha))break;
       if(i>=2)throw syncErr('conflict')}
-    CFG.last=Date.now();CFG.err='';cfgSave();setSync('ok')}
+    CFG.last=Date.now();CFG.err='';cfgSave();setSync('ok');
+    try{await pushUpdate()}catch(e){}}
   catch(e){if(CFG){CFG.err=e.code||'http';cfgSave()}setSync(e.code==='net'?'offline':'err')}
   SY.busy=false;if(SY.again){SY.again=false;syncSoon(1500)}}
 function syncSoon(ms){if(!CFG||IN_ARTIFACT)return;clearTimeout(SY.t);SY.t=setTimeout(syncNow,ms==null?3000:ms)}
@@ -756,6 +772,108 @@ function renderSync(){const box=$('syncBox');if(!box)return;box.replaceChildren(
 document.addEventListener('visibilitychange',()=>{if(!CFG)return;if(document.hidden){if(SY.t)syncNow()}else if(Date.now()-(CFG.last||0)>3000||SY.t)syncNow()});
 addEventListener('online',()=>{if(CFG)syncNow()});
 setInterval(()=>{if(CFG&&!document.hidden)syncNow()},30000);
+
+/* ---------- Benachrichtigungen: Web Push, verschickt von GitHub Actions, Inhalte mit dem Abgleich-Schlüssel verschlossen ---------- */
+const AM_T='06:00',PM_T='15:00',P_DAYS=28;
+let DEV='';try{DEV=localStorage.getItem(KEY+'-dev')||''}catch(e){}if(!DEV){DEV=uid();try{localStorage.setItem(KEY+'-dev',DEV)}catch(e){}}
+const PU={pj:null,sha:null,sent:null,loaded:false,loading:false,msg:'',msgErr:false};
+const PUSH_OK=typeof navigator!=='undefined'&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+const b64u=u8=>b64e(u8).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const ub64u=s=>{s=String(s).replace(/-/g,'+').replace(/_/g,'/');return b64d(s+'='.repeat((4-s.length%4)%4))};
+const PUSH_MSG={denied:'Benachrichtigungen wurden nicht erlaubt. Du kannst sie in den iPhone-Einstellungen unter ArbeitsTag → Mitteilungen erlauben.',
+  nosupport:'Geht nur, wenn ArbeitsTag vom Home-Bildschirm geöffnet wird (iOS 16.4 oder neuer).',sub:'Anmeldung für Benachrichtigungen hat nicht geklappt. Bitte nochmal versuchen.'};
+const pErr=c=>{const e=new Error(c);e.code=c;return e};
+async function ghGetJson(name){const r=await gh(CFG,`/repos/${CFG.repo}/contents/${name}`);if(r.status===404)return null;if(!r.ok)throw syncErr(httpErr(r.status));
+  const j=await r.json();try{return {sha:j.sha,json:JSON.parse(new TextDecoder().decode(b64d(j.content)))}}catch(e){return {sha:j.sha,json:null}}}
+async function ghPutJson(name,obj,sha){const txt=JSON.stringify(obj);const r=await gh(CFG,`/repos/${CFG.repo}/contents/${name}`,{method:'PUT',body:JSON.stringify(Object.assign({message:'push',content:b64e(new TextEncoder().encode(txt))},sha?{sha}:{}))});
+  if(r.status===409||r.status===422)return false;if(!r.ok)throw syncErr(httpErr(r.status));return true}
+function kvSet(k,v){return new Promise(res=>{try{const r=indexedDB.open('arbeitstag-push',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+  r.onsuccess=()=>{try{const tx=r.result.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>res()}catch(e){res()}};r.onerror=()=>res()}catch(e){res()}})}
+
+/* Zeitplan der nächsten 4 Wochen */
+function atOf(day,hm){const [h,m]=hm.split(':').map(Number);const d=new Date(day+'T00:00:00');d.setHours(h,m,0,0);return Math.floor(d.getTime()/1000)}
+function openDays(x,t,end){const out=[];if(x.done)return out;
+  if(!x.rule){if(!x.due||x.due<=t){for(let d=t;d<=end;d=addDays(d,1))out.push(d)}else if(x.due<=end)out.push(x.due);return out}
+  let d=x.due||t,g=0;if(d<t){out.push(t);d=nextAfter({...x,due:t},t)}
+  while(d<=end&&g++<400){out.push(d);d=nextAfter({...x,due:d},d)}return out}
+const cutT=(s,n)=>s.length>n?s.slice(0,n-1)+'…':s;
+function bellLine(arr){const n=arr.slice(0,6).map(x=>cutT(x.title,40));if(arr.length>6)n.push(`+${arr.length-6} weitere`);return '🔔 '+n.join(', ')}
+function buildSchedule(opt){const items=[];if(S.demo)return items;const t=todayISO(),end=addDays(t,P_DAYS-1),now=Date.now()/1000,per={},timed=[];
+  for(const x of S.tasks){const days=openDays(x,t,end);days.forEach(d=>(per[d]=per[d]||[]).push(x));
+    if(x.bell&&x.time){if(x.rule)days.forEach(d=>timed.push([d,x]));else if(days.length)timed.push([days[0],x])}}
+  if(!opt||opt.digest!==false)for(let d=t;d<=end;d=addDays(d,1)){const wd=D(d).getDay();if(wd===0||wd===6)continue;
+    const list=per[d]||[],n=list.length,bells=list.filter(x=>x.bell&&!x.time);
+    for(const k of ['am','pm']){const at=atOf(d,k==='am'?AM_T:PM_T);if(at<=now)continue;
+      const ti=k==='am'?(n?`Guten Morgen · ${n} ${n===1?'Aufgabe':'Aufgaben'} heute`:'Guten Morgen · heute nichts geplant'):(n?`Feierabend · noch ${n} offen`:'Feierabend · alles erledigt');
+      items.push({id:`${k}-${d}`,k,at,c:{t:ti,l:bells.length?[bellLine(bells)]:[]}})}}
+  for(const [d,x] of timed){const at=atOf(d,x.time);if(at<=now)continue;
+    items.push({id:`t-${x.id}-${d}-${x.time}`,k:'t',at,c:{t:'🔔 '+cutT(x.title,60),l:[x.rule?'↻ '+ruleLabel(x.rule):'Erinnerung aus ArbeitsTag']}})}
+  return items.sort((a,b)=>a.at-b.at||(a.id<b.id?-1:1))}
+async function schedHash(items){const k=await crypto.subtle.importKey('raw',b64d(CFG.key),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  return b64e(new Uint8Array(await crypto.subtle.sign('HMAC',k,new TextEncoder().encode(canon(items))))).slice(0,24)}
+async function sealSmall(obj,key){const iv=crypto.getRandomValues(new Uint8Array(12));
+  return b64e(iv)+'.'+b64e(new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)))))}
+async function sealItems(items){const key=await keyFrom(CFG.key),out=[];for(const it of items)out.push({id:it.id,k:it.k,at:it.at,b:await sealSmall(it.c,key)});return out}
+async function pushUpdate(force){if(!CFG||!CFG.key||S.demo||IN_ARTIFACT)return;
+  for(let i=0;i<2;i++){const r=await ghGetJson('push.json');if(!r||!r.json)return;const pj=r.json;PU.pj=pj;PU.sha=r.sha;
+    if(!pj.on||!pj.sub)return;if(pj.dev===DEV)kvSet('key',CFG.key);
+    const items=buildSchedule(pj.opt),h=await schedHash(items);if(!force&&h===pj.h)return;
+    const now=Date.now()/1000,tests=(pj.items||[]).filter(x=>x.k==='x'&&now-x.at<7200);
+    pj.items=[...(await sealItems(items)),...tests];pj.h=h;pj.upd=Date.now();
+    if(await ghPutJson('push.json',pj,r.sha)){PU.sha=null;return}}}
+async function pushEdit(fn){for(let i=0;i<3;i++){const r=await ghGetJson('push.json');const pj=(r&&r.json)||{v:1,opt:{digest:true},tr:{road:'A30',places:'',am:'W'}};
+  await fn(pj);pj.h='';pj.upd=Date.now();if(await ghPutJson('push.json',pj,r&&r.sha)){PU.pj=pj;return pj}}throw syncErr('conflict')}
+async function enablePush(){if(!PUSH_OK)throw pErr('nosupport');
+  const perm=await Notification.requestPermission();if(perm!=='granted')throw pErr('denied');
+  const reg=await navigator.serviceWorker.ready;
+  const kp=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+  const vapid={pub:b64u(new Uint8Array(await crypto.subtle.exportKey('raw',kp.publicKey))),d:(await crypto.subtle.exportKey('jwk',kp.privateKey)).d};
+  const old=await reg.pushManager.getSubscription();if(old)await old.unsubscribe().catch(()=>{});
+  let sub;try{sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:ub64u(vapid.pub)})}catch(e){throw pErr('sub')}
+  await pushEdit(async pj=>{pj.vapid=vapid;pj.sub=sub.toJSON();pj.dev=DEV;pj.on=true;pj.opt=pj.opt||{digest:true};pj.tr=pj.tr||{road:'A30',places:'',am:'W'}});
+  await kvSet('key',CFG.key);await pushUpdate(true)}
+async function disablePush(){await pushEdit(async pj=>{pj.on=false;pj.items=[]});
+  if(PUSH_OK){try{const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();if(s&&PU.pj&&PU.pj.dev===DEV)await s.unsubscribe()}catch(e){}}}
+async function testPush(){const key=await keyFrom(CFG.key);const b=await sealSmall({t:'ArbeitsTag',l:['Test: Benachrichtigungen funktionieren ✓']},key);
+  await pushEdit(async pj=>{const now=Math.floor(Date.now()/1000);pj.items=(pj.items||[]).filter(x=>x.k!=='x');pj.items.push({id:'x-'+now,k:'x',at:now,b})});await pushUpdate(true)}
+async function loadPush(){if(!CFG||PU.loading)return;PU.loading=true;
+  try{const [a,b]=await Promise.all([ghGetJson('push.json'),ghGetJson('sent.json')]);PU.pj=a&&a.json;PU.sent=b&&b.json;PU.loaded=true}
+  catch(e){PU.loaded=true;PU.msg=SYNC_MSG[e.code]||SYNC_MSG.http;PU.msgErr=true}PU.loading=false;renderPush()}
+
+/* Anzeige im Menü */
+function renderPush(){const box=$('pushBox');if(!box)return;box.replaceChildren();
+  const msg=mk('div','msg'+(PU.msgErr?' err':''),PU.msg||'');msg.setAttribute('role','status');
+  const btns=(...b)=>{const r=mk('div','row');r.append(...b.filter(Boolean));return r};
+  const go=(fn,btn)=>async()=>{const o=btn.textContent;btn.disabled=true;btn.textContent='Einen Moment …';PU.msg='';PU.msgErr=false;
+    try{await fn()}catch(e){PU.msg=PUSH_MSG[e.code]||SYNC_MSG[e.code]||SYNC_MSG.http;PU.msgErr=true}btn.disabled=false;btn.textContent=o;renderPush()};
+  if(IN_ARTIFACT){box.append(mk('p','sub','Benachrichtigungen funktionieren, sobald die App über GitHub läuft.'));return}
+  if(!CFG){box.append(mk('p','sub','Benachrichtigungen laufen über deinen Abgleich. Richte zuerst oben den Abgleich ein.'));return}
+  if(!PU.loaded){box.append(mk('p','sub','Lade …'));loadPush();return}
+  const pj=PU.pj,sent=PU.sent,here=!!(pj&&pj.on&&pj.dev===DEV),perm=PUSH_OK?Notification.permission:'default';
+  if(here&&perm!=='denied'){
+    let st;if(sent&&sent.dead)st='Dein iPhone hat die Benachrichtigungen abgemeldet. Tippe unten auf „Neu anmelden“.';
+    else if(sent&&sent.last)st=`Aktiv auf diesem Gerät · letzte Benachrichtigung ${agoMs(sent.last*1000)}`;
+    else if(sent&&sent.run)st='Aktiv auf diesem Gerät · noch keine Benachrichtigung verschickt.';
+    else st=(pj.upd&&Date.now()-pj.upd>40*60000)?'Aktiv, aber der Versand-Dienst hat sich noch nicht gemeldet. Ist bei GitHub das Secret DATA_TOKEN eingetragen?':'Aktiv auf diesem Gerät · der Versand-Dienst schaut alle 15 Minuten nach.';
+    box.append(mk('p','sub'+(sent&&sent.dead?' bad':''),st));
+    const dg=mk('label','switch');const dc=mk('input');dc.type='checkbox';dc.checked=!(pj.opt&&pj.opt.digest===false);
+    dg.append(mk('span',null,'Übersicht um 6 und 15 Uhr (Mo–Fr)'),dc);
+    const tr=pj.tr||{};const [pw,pi]=field('Verkehr: Orte an der A30, mit Komma getrennt',{type:'text',value:tr.places||'',placeholder:'z. B. Bruchmühlen, Melle, Gesmold'});
+    const dw=mk('label','fld');dw.append(mk('span','sub','Morgens fahre ich Richtung'));const ds=mk('select');
+    [['W','Osnabrück'],['E','Bad Oeynhausen']].forEach(([v,l])=>{const o=mk('option',null,l);o.value=v;if((tr.am||'W')===v)o.selected=true;ds.append(o)});dw.append(ds);
+    const sv=mk('button','primary small','Speichern');sv.onclick=go(async()=>{await pushEdit(async p=>{p.opt={...(p.opt||{}),digest:dc.checked};p.tr={road:'A30',places:pi.value.trim(),am:ds.value}});await pushUpdate(true);PU.msg='Gespeichert.'},sv);
+    const ts=mk('button','small','Test senden');ts.onclick=go(async()=>{await testPush();PU.msg='Test ist unterwegs. Er kommt in den nächsten 15 bis 20 Minuten.'},ts);
+    const re=sent&&sent.dead?mk('button','small','Neu anmelden'):null;if(re)re.onclick=go(async()=>{await enablePush();PU.sent=null;PU.msg='Neu angemeldet.'},re);
+    const off=mk('button','ghost small danger','Ausschalten');off.onclick=go(async()=>{await disablePush();PU.msg='Benachrichtigungen sind aus.'},off);
+    box.append(dg,pw,dw,btns(sv,ts,re),btns(off),mk('p','sub','Einzelne Aufgaben erinnern dich, wenn du im Bearbeiten-Fenster „🔔 Erinnern“ einschaltest oder beim Eintippen eine Uhrzeit schreibst, z. B. „Arzt anrufen morgen um 9“. Die Uhrzeiten sind ungefähr: meist kommt die Meldung bis zu 20 Minuten später.'),msg);return}
+  if(pj&&pj.on&&pj.dev!==DEV){box.append(mk('p','sub','Benachrichtigungen sind auf einem anderen Gerät aktiv.'));
+    if(PUSH_OK){const b=mk('button','small','Stattdessen hier aktivieren');b.onclick=go(async()=>{await enablePush();PU.msg='Aktiviert. Ab jetzt kommen die Benachrichtigungen auf dieses Gerät.'},b);box.append(btns(b))}
+    box.append(msg);return}
+  box.append(mk('p','sub','Morgens um 6 und nach der Arbeit um 15 Uhr eine kurze Übersicht mit Verkehr auf deinem Arbeitsweg (Mo–Fr), dazu Erinnerungen für Aufgaben mit 🔔. Die Texte werden auf dem Gerät verschlossen, GitHub und Apple sehen sie nicht.'));
+  if(!PUSH_OK){box.append(mk('p','sub bad',PUSH_MSG.nosupport),msg);return}
+  if(here&&perm==='denied')box.append(mk('p','sub bad','Benachrichtigungen sind in den iPhone-Einstellungen für ArbeitsTag ausgeschaltet.'));
+  const en=mk('button','primary','Benachrichtigungen aktivieren');en.onclick=go(async()=>{await enablePush();PU.msg='Aktiviert. Trag noch die Orte für den Verkehr ein und tippe auf Speichern.'},en);
+  box.append(btns(en),msg)}
 
 /* ---------- Start ---------- */
 load();snapInit();render();
