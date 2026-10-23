@@ -120,6 +120,17 @@ body.welt,body.region{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px)
 textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-radius:10px;background:var(--sunk);padding:8px;box-sizing:border-box}
 .msg{font-size:14px;min-height:1.2em;color:var(--accent)}
 .msg.err{color:var(--late)}
+.syncbox{display:flex;flex-direction:column;gap:10px}
+.syncbox .row{display:flex;gap:8px;flex-wrap:wrap}
+.syncbox p{margin:0;line-height:1.5}
+.syncbox .bad{color:var(--late)}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld input{font-size:16px}
+.qr{background:#fff;border-radius:12px;padding:8px;width:min(260px,100%);align-self:center;color:#000;font-size:14px;text-align:center}
+.qr svg{display:block;width:100%;height:auto}
+video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-fit:cover}
+#menuBtn{position:relative}
+#menuBtn.warn::after{content:'';position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--late)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(140px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;font-weight:600;z-index:60;max-width:calc(100% - 32px);text-align:center;display:flex;gap:12px;align-items:center}
 .toast button{background:transparent;color:var(--accent);min-height:28px;padding:0 4px}
 /* Welt */
@@ -220,6 +231,8 @@ textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;borde
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><textarea id="bkText" aria-label="Sicherungstext" placeholder="Sicherungstext hier einfügen"></textarea>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="small" id="bkCopy">Text kopieren</button><button class="small" id="bkLoad">Text einlesen</button></div></div></details>
   <div class="msg" id="bkMsg" role="status"></div>
+  <h2 style="margin-top:6px">Abgleich iPhone ↔ iPad</h2>
+  <div id="syncBox" class="syncbox"></div>
   <h2 style="margin-top:6px">Nachrichten</h2>
   <label class="switch"><span>Vorschaubilder laden<br><span class="sub">Bilder kommen direkt von den Servern der Zeitungen. Die sehen dabei deine IP-Adresse. Bilder verbrauchen etwas mehr mobile Daten.</span></span><input type="checkbox" id="imgToggle" checked></label>
   <p class="sub" style="margin:0" id="archInfo"></p>
@@ -329,8 +342,17 @@ function demo(){const t=todayISO(),y=addDays(t,-1);
   return {demo:true,tasks,log,lastBackup:0}}
 function load(){try{const r=localStorage.getItem(KEY);if(r){S=JSON.parse(r);S.tasks=S.tasks||[];S.log=S.log||[];return}}catch(e){}S=demo()}
 let persistAsked=false;
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Speichern nicht möglich. Bitte eine Sicherung anlegen.')}
-  if(!persistAsked&&navigator.storage&&navigator.storage.persist){persistAsked=true;navigator.storage.persist().catch(()=>{})}}
+/* Änderungszeit je Aufgabe merken (für den Abgleich zwischen Geräten) */
+let SNAP=new Map();
+const tj=x=>{const {u,...r}=x;return JSON.stringify(r)};
+function snapInit(){SNAP=new Map(S.tasks.map(x=>[x.id,tj(x)]))}
+function stamp(){const now=Date.now(),ids=new Set();S.del=S.del||{};
+  for(const x of S.tasks){ids.add(x.id);const j=tj(x);if(SNAP.get(x.id)!==j){x.u=now;SNAP.set(x.id,j)}}
+  for(const id of [...SNAP.keys()])if(!ids.has(id)){if(!S.demo)S.del[id]=now;SNAP.delete(id)}}
+function save(applied){if(applied)snapInit();else stamp();
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Speichern nicht möglich. Bitte eine Sicherung anlegen.')}
+  if(!persistAsked&&navigator.storage&&navigator.storage.persist){persistAsked=true;navigator.storage.persist().catch(()=>{})}
+  if(!applied&&!S.demo)syncSoon()}
 
 /* ---------- Logik ---------- */
 const isOpenToday=(x,t)=>!x.done&&(!x.due||x.due<=t);
@@ -342,7 +364,7 @@ function complete(id){const x=S.tasks.find(k=>k.id===id);if(!x)return;const t=to
   S.log.push(entry);if(S.log.length>3000)S.log=S.log.slice(-3000);save();return entry}
 function undo(entryId){const i=S.log.findIndex(l=>l.id===entryId);if(i<0)return;const l=S.log[i],x=S.tasks.find(k=>k.id===l.task);
   if(x){x.due=l.prev.due;x.streak=l.prev.streak;x.best=l.prev.best;if(!x.rule){x.done=l.prev.done;x.doneOn=l.prev.doneOn}}
-  S.log.splice(i,1);save()}
+  S.log.splice(i,1);(S.del=S.del||{})[entryId]=Date.now();save()}
 
 /* ---------- Anzeige ---------- */
 let openEdit=null,soonOpen=false,doneOpen=true,lastFull=false;
@@ -433,7 +455,7 @@ function toast(t,undoFn){const e=$('toast');$('toastTxt').textContent=t;const b=
 const backupJSON=()=>JSON.stringify({app:'arbeitstag',version:1,saved:new Date().toISOString(),tasks:S.tasks,log:S.log,favs:typeof FAVS!=='undefined'?[...FAVS.values()]:[]});
 function markBackup(){S.lastBackup=Date.now();save();bkInfo()}
 function bkInfo(){const lb=S.lastBackup?new Date(S.lastBackup).toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'}):null;
-  $('bkInfo').textContent=`Deine Aufgaben liegen nur auf diesem Gerät. Speichere ab und zu eine Sicherung in der Dateien-App. ${lb?'Letzte Sicherung: '+lb+'.':'Noch keine Sicherung gespeichert.'}`}
+  $('bkInfo').textContent=(typeof CFG!=='undefined'&&CFG?'Deine Aufgaben werden verschlüsselt mit deinen anderen Geräten abgeglichen. Eine Sicherung als Datei schadet trotzdem nicht. ':'Deine Aufgaben liegen nur auf diesem Gerät. Speichere ab und zu eine Sicherung in der Dateien-App. ')+(lb?'Letzte Sicherung: '+lb+'.':'Noch keine Sicherung gespeichert.')}
 async function saveBackup(){const name=`arbeitstag-sicherung-${todayISO()}.json`,txt=backupJSON(),m=$('bkMsg');m.className='msg';
   try{const file=new File([txt],name,{type:'application/json'});if(!IN_ARTIFACT&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'ArbeitsTag-Sicherung'});markBackup();m.textContent='Sicherung gespeichert.';return}}
   catch(e){if(e&&e.name==='AbortError'){m.textContent='Abgebrochen.';return}}
@@ -441,19 +463,21 @@ async function saveBackup(){const name=`arbeitstag-sicherung-${todayISO()}.json`
   try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);markBackup();m.textContent='Sicherung heruntergeladen.'}
   catch(e){m.className='msg err';m.textContent='Speichern als Datei geht hier nicht. Nutze „Sicherung als Text“.'}}
 function restore(txt){const m=$('bkMsg');try{const d=JSON.parse(txt);if(d.app!=='arbeitstag'||!Array.isArray(d.tasks))throw 0;
-  S={demo:false,tasks:d.tasks,log:d.log||[],lastBackup:Date.now()};save();render();bkInfo();
-  if(Array.isArray(d.favs)&&d.favs.length){d.favs.forEach(f=>FAVS.set(f.id,f));idbWrite('favs',d.favs,[])}
+  S={demo:false,tasks:d.tasks,log:d.log||[],del:S.del||{},lastBackup:Date.now()};save();render();bkInfo();
+  if(Array.isArray(d.favs)&&d.favs.length){d.favs.forEach(f=>{FAVS.set(f.id,f);delete FDEL[f.id]});fdelSave();idbWrite('favs',d.favs,[]);syncSoon()}
   m.className='msg';m.textContent=`Wiederhergestellt: ${S.tasks.length} Aufgaben`+(d.favs&&d.favs.length?`, ${d.favs.length} Favoriten.`:'.')}
   catch(e){m.className='msg err';m.textContent='Das ist keine gültige ArbeitsTag-Sicherung.'}}
 let restoreArm=false;
 function armRestore(btn,fn){if(!S.demo&&S.tasks.length&&!restoreArm){restoreArm=true;const o=btn.textContent;btn.textContent='Ersetzt alle aktuellen Aufgaben. Nochmal tippen';setTimeout(()=>{restoreArm=false;btn.textContent=o},3500);return}restoreArm=false;fn()}
-$('menuBtn').onclick=()=>{bkInfo();$('archInfo').textContent=`Auf diesem Gerät gespeichert: ${ARCH.size} Meldungen der letzten 4 Wochen, ${FAVS.size} Favoriten.`;$('sheet').hidden=false};$('sheetClose').onclick=()=>$('sheet').hidden=true;$('sheet').onclick=e=>{if(e.target===$('sheet'))$('sheet').hidden=true};
+$('menuBtn').onclick=()=>{bkInfo();$('archInfo').textContent=`Auf diesem Gerät gespeichert: ${ARCH.size} Meldungen der letzten 4 Wochen, ${FAVS.size} Favoriten.`;$('sheet').hidden=false;renderSync()};
+function closeSheet(){$('sheet').hidden=true;stopScan();SY.ui='';SY.form={};SY.msg=''}
+$('sheetClose').onclick=closeSheet;$('sheet').onclick=e=>{if(e.target===$('sheet'))closeSheet()};
 $('bkSave').onclick=saveBackup;$('bkOpen').onclick=e=>armRestore(e.currentTarget,()=>$('bkFile').click());
 $('bkFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>restore(String(r.result));r.readAsText(f);e.target.value=''};
 $('bkCopy').onclick=()=>{const txt=backupJSON();$('bkText').value=txt;const m=$('bkMsg');m.className='msg';const fb=()=>{$('bkText').focus();$('bkText').select();m.textContent='Text ist markiert. Jetzt kopieren.'};
   try{navigator.clipboard.writeText(txt).then(()=>{m.textContent='Kopiert. Füge den Text in deine Notizen ein.';markBackup()},fb)}catch(e){fb()}};
 $('bkLoad').onclick=e=>armRestore(e.currentTarget,()=>restore($('bkText').value));
-$('clearDemo').onclick=()=>{S={demo:false,tasks:[],log:[],lastBackup:S.lastBackup||0};save();render();$('addIn').focus()};
+$('clearDemo').onclick=()=>{S={demo:false,tasks:[],log:[],del:{},lastBackup:S.lastBackup||0};snapInit();save();render();$('addIn').focus()};
 
 /* ---------- Tabs ---------- */
 let cur='heute';
@@ -489,7 +513,7 @@ async function mergeNews(items){const cut=Date.now()/1000-ARCH_DAYS*86400,puts=[
   items.forEach(i=>{const o=ARCH.get(i.id);if(!o||o.title!==i.title||o.img!==i.img){ARCH.set(i.id,i);puts.push(i)}});
   for(const [k,i] of ARCH)if(i.ts<cut){ARCH.delete(k);dels.push(k)}
   if(puts.length||dels.length)await idbWrite('items',puts,dels)}
-async function toggleFav(i){if(FAVS.has(i.id)){FAVS.delete(i.id);await idbWrite('favs',[],[i.id])}else{const f={...i,favAt:Date.now()};FAVS.set(i.id,f);await idbWrite('favs',[f],[])}}
+async function toggleFav(i){if(FAVS.has(i.id)){FAVS.delete(i.id);FDEL[i.id]=Date.now();fdelSave();await idbWrite('favs',[],[i.id])}else{const f={...i,favAt:Date.now()};FAVS.set(i.id,f);await idbWrite('favs',[f],[])}syncSoon()}
 async function loadNews(){if(newsLoading||IN_ARTIFACT)return;newsLoading=true;
   try{const r=await fetch('news.json?t='+Math.floor(Date.now()/600000),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.items)){NEWS=d;try{localStorage.setItem(NKEY,JSON.stringify(d))}catch(e){}await mergeNews(d.items)}}}
   catch(e){}newsLoading=false;updateDots();renderNewsViews()}
@@ -543,13 +567,200 @@ function renderNewsViews(){if(cur==='welt')renderNewsView('welt');else if(cur===
 window.renderWelt=renderNewsViews;
 ['w','r'].forEach(P=>{const tab=P==='w'?'welt':'region';let t;$(P+'Q').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{VIEW[tab].q=e.target.value;VIEW[tab].n=60;renderNewsView(tab)},150)}});
 $('imgToggle').checked=IMG;$('imgToggle').onchange=e=>{IMG=e.target.checked;try{localStorage.setItem(IMGKEY,IMG?'1':'0')}catch(x){}renderNewsViews()};
-initArchive().then(()=>loadNews());setInterval(()=>{if(!document.hidden)loadNews()},20*60000);
+const ARCH_READY=initArchive();ARCH_READY.then(()=>loadNews());setInterval(()=>{if(!document.hidden)loadNews()},20*60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadNews()});
 
 
+/* ---------- Abgleich zwischen Geräten: verschlüsselt (AES-256-GCM, Schlüssel aus Passwort) in einem privaten GitHub-Repo ---------- */
+const CKEY=KEY+'-sync',FDKEY=KEY+'-fdel',SYNC_FILE='arbeitstag.sync',KDF_IT=210000,TOMB_DAYS=120,GH='https://api.github.com';
+let CFG=null;try{CFG=JSON.parse(localStorage.getItem(CKEY)||'null')}catch(e){}
+let FDEL={};try{FDEL=JSON.parse(localStorage.getItem(FDKEY)||'{}')}catch(e){}
+const SY={busy:false,again:false,t:null,state:'',ui:'',form:{},msg:'',scan:null};
+function cfgSave(){try{CFG?localStorage.setItem(CKEY,JSON.stringify(CFG)):localStorage.removeItem(CKEY)}catch(e){}}
+function fdelSave(){try{localStorage.setItem(FDKEY,JSON.stringify(FDEL))}catch(e){}}
+const syncErr=code=>{const e=new Error(code);e.code=code;return e};
+const SYNC_MSG={net:'Keine Verbindung zu GitHub. Neuer Versuch folgt automatisch.',auth:'Der Zugangsschlüssel (Token) ist ungültig oder abgelaufen. Bitte neuen eintragen.',
+  perm:'Der Token darf nicht schreiben. Bei GitHub unter „Contents“ „Read and write“ wählen.',repo:'Repo nicht gefunden, oder der Token hat keinen Zugriff darauf.',
+  pass:'Das Passwort passt nicht zu den Daten in der Cloud.',old:'Dieses Gerät ist zu alt für den Abgleich (iOS 16.4 oder neuer nötig).',
+  public:'Das Repo ist öffentlich. Stell es bei GitHub auf „Private“, dann nochmal versuchen.',repofmt:'Repo bitte so angeben: name/repo, z. B. sasha-apps/arbeitstag-daten.',
+  short:'Das Passwort braucht mindestens 8 Zeichen.',mismatch:'Die beiden Passwörter sind nicht gleich.',code:'Das ist kein gültiger Verbindungscode.',
+  conflict:'Abgleich hat gerade nicht geklappt. Neuer Versuch folgt automatisch.',http:'Abgleich hat gerade nicht geklappt. Neuer Versuch folgt automatisch.',
+  crypto:'Verschlüsselung ist hier nicht verfügbar. Bitte die App über https öffnen.'};
+
+/* Bytes, Base64, gzip */
+const b64e=u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)};
+const b64d=s=>Uint8Array.from(atob(String(s).replace(/\s/g,'')),c=>c.charCodeAt(0));
+const HAS_GZ=typeof CompressionStream!=='undefined'&&typeof DecompressionStream!=='undefined';
+async function gz(u8,pack){const st=new Blob([u8]).stream().pipeThrough(pack?new CompressionStream('gzip'):new DecompressionStream('gzip'));return new Uint8Array(await new Response(st).arrayBuffer())}
+
+/* Schlüssel und Verschlüsselung */
+async function deriveKey(pass,saltB64){if(!(window.crypto&&crypto.subtle))throw syncErr('crypto');
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:b64d(saltB64),iterations:KDF_IT},base,{name:'AES-GCM',length:256},true,['encrypt','decrypt'])}
+const keyRaw=async k=>b64e(new Uint8Array(await crypto.subtle.exportKey('raw',k)));
+const keyFrom=b=>crypto.subtle.importKey('raw',b64d(b),{name:'AES-GCM'},false,['encrypt','decrypt']);
+async function seal(obj,key,salt){let data=new TextEncoder().encode(JSON.stringify(obj)),z=0;if(HAS_GZ){data=await gz(data,1);z=1}
+  const iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data));
+  return JSON.stringify({app:'arbeitstag-sync',v:1,kdf:'PBKDF2-SHA256',it:KDF_IT,salt,z,iv:b64e(iv),ct:b64e(ct)})}
+async function unseal(env,key){let d;try{d=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(env.iv)},key,b64d(env.ct)))}catch(e){throw syncErr('pass')}
+  if(env.z){if(!HAS_GZ)throw syncErr('old');d=await gz(d,0)}return JSON.parse(new TextDecoder().decode(d))}
+
+/* GitHub */
+async function gh(cfg,path,opt){opt=opt||{};let r;
+  try{r=await fetch(GH+path,{method:opt.method||'GET',cache:'no-store',body:opt.body,
+    headers:Object.assign({Accept:opt.raw?'application/vnd.github.raw':'application/vnd.github+json',Authorization:'Bearer '+cfg.token},opt.body?{'Content-Type':'application/json'}:{})})}
+  catch(e){throw syncErr('net')}return r}
+const httpErr=s=>s===401?'auth':s===403?'perm':s===404?'repo':'http';
+async function remoteGet(cfg){const p=`/repos/${cfg.repo}/contents/${SYNC_FILE}`;const r=await gh(cfg,p);
+  if(r.status===404)return null;if(!r.ok)throw syncErr(httpErr(r.status));const j=await r.json();let txt;
+  if(j.encoding==='base64'&&j.content)txt=new TextDecoder().decode(b64d(j.content));
+  else{const r2=await gh(cfg,p,{raw:1});if(!r2.ok)throw syncErr(httpErr(r2.status));txt=await r2.text()}
+  let env;try{env=JSON.parse(txt)}catch(e){throw syncErr('http')}if(!env||env.app!=='arbeitstag-sync')throw syncErr('http');return {sha:j.sha,env}}
+async function remotePut(cfg,txt,sha){const r=await gh(cfg,`/repos/${cfg.repo}/contents/${SYNC_FILE}`,{method:'PUT',body:JSON.stringify(Object.assign({message:'sync',content:btoa(txt)},sha?{sha}:{}))});
+  if(r.status===409||r.status===422)return false;if(!r.ok)throw syncErr(httpErr(r.status));return true}
+async function checkRepo(cfg){const r=await gh(cfg,`/repos/${cfg.repo}`);if(!r.ok)throw syncErr(httpErr(r.status));const j=await r.json();if(!j.private)throw syncErr('public')}
+
+/* Zusammenführen: neueste Änderung je Aufgabe gewinnt, Erledigt-Einträge werden vereinigt, Gelöschtes bleibt gelöscht */
+const canon=v=>Array.isArray(v)?'['+v.map(canon).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}':JSON.stringify(v===undefined?null:v);
+const byId=(a,b)=>a.id<b.id?-1:a.id>b.id?1:0;
+function normP(p){const cut=Date.now()-TOMB_DAYS*864e5,dc=addDays(todayISO(),-3);
+  const prune=o=>{const r={};Object.keys(o||{}).sort().forEach(k=>{if(o[k]>=cut)r[k]=o[k]});return r};
+  const log=(p.log||[]).map(l=>l.prev&&l.date<dc?(({prev,...r})=>r)(l):l).sort((a,b)=>a.at-b.at||byId(a,b)).slice(-3000);
+  return {tasks:[...(p.tasks||[])].sort(byId),log,del:prune(p.del),favs:[...(p.favs||[])].sort(byId),fdel:prune(p.fdel)}}
+function mergeData(a,b){const maxMap=(x,y)=>{const r={...(y||{})};for(const k in x||{})r[k]=Math.max(r[k]||0,x[k]);return r};
+  const del=maxMap(a.del,b.del),fdel=maxMap(a.fdel,b.fdel);
+  const pick=(m,x,ts)=>{const o=m.get(x.id);if(!o||ts(x)>ts(o)||(ts(x)===ts(o)&&canon(x)>canon(o)))m.set(x.id,x)};
+  const tm=new Map();[...(b.tasks||[]),...(a.tasks||[])].forEach(x=>pick(tm,x,t=>t.u||0));
+  const tasks=[...tm.values()].filter(x=>!(del[x.id]>=(x.u||0)));
+  const lm=new Map();[...(b.log||[]),...(a.log||[])].forEach(l=>{if(!lm.has(l.id))lm.set(l.id,l)});
+  const log=[...lm.values()].filter(l=>!del[l.id]);
+  const fm=new Map();[...(b.favs||[]),...(a.favs||[])].forEach(f=>pick(fm,f,x=>x.favAt||0));
+  const favs=[...fm.values()].filter(f=>!(fdel[f.id]>=(f.favAt||0)));
+  return normP({tasks,log,del,favs,fdel})}
+const localPayload=()=>({tasks:S.tasks,log:S.log,del:S.del||{},favs:[...FAVS.values()],fdel:FDEL});
+function applyLocal(m){S.tasks=m.tasks;S.log=m.log;S.del=m.del;S.demo=false;save(true);
+  FDEL=m.fdel;fdelSave();
+  const nf=new Map(m.favs.map(f=>[f.id,f]));const dels=[...FAVS.keys()].filter(k=>!nf.has(k));const puts=m.favs.filter(f=>{const o=FAVS.get(f.id);return !o||canon(o)!==canon(f)});
+  FAVS.clear();nf.forEach((v,k)=>FAVS.set(k,v));if(puts.length||dels.length)idbWrite('favs',puts,dels);
+  if(openEdit==null)render();renderNewsViews()}
+function dropDemo(){if(!S.demo)return;S.tasks=S.tasks.filter(x=>!/^d\d+$/.test(x.id));S.log=S.log.filter(l=>!/^l\d+$/.test(l.id));S.demo=false;save(true);render()}
+
+/* Ablauf */
+async function syncNow(){if(!CFG||!CFG.key||IN_ARTIFACT)return;if(SY.busy){SY.again=true;return}
+  clearTimeout(SY.t);SY.t=null;
+  if(navigator.onLine===false){setSync('offline');return}
+  SY.busy=true;setSync('busy');
+  try{await ARCH_READY;const key=await keyFrom(CFG.key);dropDemo();
+    for(let i=0;;i++){const rem=await remoteGet(CFG);let remote=null;
+      if(rem){if(rem.env.salt!==CFG.salt)throw syncErr('pass');remote=await unseal(rem.env,key)}
+      const local=normP(localPayload());const merged=remote?mergeData(local,normP(remote)):local;
+      if(canon(merged)!==canon(local))applyLocal(merged);
+      if(remote&&canon(merged)===canon(normP(remote)))break;
+      if(await remotePut(CFG,await seal(merged,key,CFG.salt),rem&&rem.sha))break;
+      if(i>=2)throw syncErr('conflict')}
+    CFG.last=Date.now();CFG.err='';cfgSave();setSync('ok')}
+  catch(e){if(CFG){CFG.err=e.code||'http';cfgSave()}setSync(e.code==='net'?'offline':'err')}
+  SY.busy=false;if(SY.again){SY.again=false;syncSoon(1500)}}
+function syncSoon(ms){if(!CFG||IN_ARTIFACT)return;clearTimeout(SY.t);SY.t=setTimeout(syncNow,ms==null?8000:ms)}
+function setSync(st){SY.state=st;$('menuBtn').classList.toggle('warn',!!(CFG&&CFG.err&&['auth','perm','repo','pass','public','old'].includes(CFG.err)));if(!$('sheet').hidden)renderSync()}
+
+/* Einrichten und Verbinden */
+function cleanRepo(r){r=String(r||'').trim().replace(/^https?:\/\/github\.com\//i,'').replace(/\.git$/,'').replace(/\/+$/,'');if(!/^[\w.-]+\/[\w.-]+$/.test(r))throw syncErr('repofmt');return r}
+async function connect(f){const repo=cleanRepo(f.repo),token=String(f.token||'').trim();const cfg={repo,token};
+  await checkRepo(cfg);const rem=await remoteGet(cfg);let salt,key;
+  if(rem){salt=rem.env.salt;key=await deriveKey(f.pass,salt);await unseal(rem.env,key)}
+  else{if((f.pass||'').length<8)throw syncErr('short');if(f.pass2==null)return 'need2';if(f.pass!==f.pass2)throw syncErr('mismatch');
+    salt=b64e(crypto.getRandomValues(new Uint8Array(16)));key=await deriveKey(f.pass,salt)}
+  CFG={repo,token,key:await keyRaw(key),salt,last:0,err:''};cfgSave();dropDemo();await syncNow();return 'ok'}
+async function newPass(pass){const rem=await remoteGet(CFG);if(!rem)throw syncErr('http');const key=await deriveKey(pass,rem.env.salt);await unseal(rem.env,key);
+  CFG.key=await keyRaw(key);CFG.salt=rem.env.salt;CFG.err='';cfgSave();await syncNow()}
+async function newToken(token){const cfg={repo:CFG.repo,token:String(token||'').trim()};await checkRepo(cfg);CFG.token=cfg.token;CFG.err='';cfgSave();await syncNow()}
+const pairCode=()=>'AT1:'+btoa(JSON.stringify({r:CFG.repo,t:CFG.token}));
+function readPair(s){const m=String(s||'').trim().match(/AT1:([A-Za-z0-9+/=]+)/);if(!m)throw syncErr('code');try{const j=JSON.parse(atob(m[1]));if(j.r&&j.t)return j}catch(e){}throw syncErr('code')}
+const libs={};
+function lib(src){return libs[src]||(libs[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>{delete libs[src];rej(syncErr('net'))};document.head.append(s)}))}
+async function qrSvg(text){await lib('qr.js');const q=qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount(),m=4;let d='';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c+m} ${r+m}h1v1h-1z`;
+  return `<svg viewBox="0 0 ${n+2*m} ${n+2*m}" shape-rendering="crispEdges" role="img" aria-label="QR-Code zum Verbinden"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`}
+function stopScan(){const s=SY.scan;SY.scan=null;if(s){clearInterval(s.iv);s.stream&&s.stream.getTracks().forEach(t=>t.stop())}}
+async function startScan(video,onCode,onFail){stopScan();try{await lib('jsqr.js')}catch(e){onFail('Scanner konnte nicht geladen werden. Füge den Code stattdessen ein.');return}
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})}
+  catch(e){onFail('Kein Zugriff auf die Kamera. Erlaube die Kamera in den Einstellungen oder füge den Code ein.');return}
+  const s={stream,iv:0};SY.scan=s;video.srcObject=stream;video.setAttribute('playsinline','');video.muted=true;try{await video.play()}catch(e){}
+  const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+  s.iv=setInterval(()=>{if(SY.scan!==s||!video.videoWidth)return;const sc=Math.min(1,640/video.videoWidth);cv.width=Math.round(video.videoWidth*sc);cv.height=Math.round(video.videoHeight*sc);
+    cx.drawImage(video,0,0,cv.width,cv.height);const im=cx.getImageData(0,0,cv.width,cv.height);const r=jsQR(im.data,im.width,im.height,{inversionAttempts:'dontInvert'});
+    if(r&&/^AT1:/.test(r.data)){stopScan();onCode(r.data)}},250)}
+
+/* Anzeige im Menü */
+function agoMs(t){if(!t)return 'noch nie';const m=Math.round((Date.now()-t)/60000);if(m<1)return 'gerade eben';if(m<60)return `vor ${m} Min.`;const h=Math.round(m/60);if(h<24)return `vor ${h} Std.`;
+  return new Date(t).toLocaleDateString('de-DE',{day:'numeric',month:'long'})}
+function syncStatus(){if(!CFG)return '';if(SY.state==='busy')return 'Gleiche ab …';if(CFG.err&&CFG.err!=='net'&&SY.state!=='offline')return SYNC_MSG[CFG.err]||SYNC_MSG.http;
+  if(SY.state==='offline'||CFG.err==='net')return `Gerade offline. Zuletzt abgeglichen ${agoMs(CFG.last)}. Geht automatisch weiter, sobald Internet da ist.`;
+  return `Abgeglichen ${agoMs(CFG.last)} · Repo ${CFG.repo}`}
+function field(label,attrs){const w=mk('label','fld');w.append(mk('span','sub',label));const i=mk('input');Object.assign(i,attrs);
+  i.setAttribute('autocapitalize','off');i.setAttribute('autocorrect','off');i.spellcheck=false;w.append(i);return [w,i]}
+function renderSync(){const box=$('syncBox');if(!box)return;box.replaceChildren();const ui=SY.ui,F=SY.form;
+  const msg=mk('div','msg'+(SY.msg&&SY.msgErr?' err':''),SY.msg||'');msg.setAttribute('role','status');
+  const btns=(...b)=>{const r=mk('div','row');r.append(...b);return r};
+  const go=(fn,btn)=>async()=>{const o=btn.textContent;btn.disabled=true;btn.textContent='Einen Moment …';SY.msg='';
+    try{await fn()}catch(e){SY.msg=SYNC_MSG[e.code]||SYNC_MSG.http;SY.msgErr=true}btn.disabled=false;btn.textContent=o;renderSync()};
+  const cancel=()=>{const b=mk('button','ghost small','Abbrechen');b.onclick=()=>{stopScan();SY.ui='';SY.msg='';SY.form={};renderSync()};return b};
+  if(IN_ARTIFACT){box.append(mk('p','sub','Der Abgleich funktioniert, sobald die App über GitHub läuft.'));return}
+  if(ui==='setup'||ui==='code'){
+    if(ui==='code'&&!F.token){
+      box.append(mk('p','sub','Auf dem anderen Gerät: ⋯ → „Anderes Gerät verbinden“. Dann hier den QR-Code scannen oder den Verbindungscode einfügen.'));
+      const v=mk('video','scan');v.hidden=true;const sb=mk('button','primary','QR-Code scannen');
+      const fail=t=>{v.hidden=true;SY.msg=t;SY.msgErr=true;msg.className='msg err';msg.textContent=t};
+      const got=code=>{try{const j=readPair(code);F.repo=j.r;F.token=j.t;SY.msg='Code erkannt. Jetzt nur noch dein Passwort.';SY.msgErr=false}catch(e){SY.msg=SYNC_MSG.code;SY.msgErr=true}renderSync()};
+      sb.onclick=()=>{v.hidden=false;sb.hidden=true;startScan(v,got,fail)};
+      const [cw,ci]=field('Oder Verbindungscode einfügen',{type:'text',placeholder:'AT1:…'});const cb=mk('button','small','Code übernehmen');cb.onclick=()=>got(ci.value);
+      box.append(sb,v,cw,btns(cb,cancel()),msg);return}
+    const [rw,ri]=field('Privates Repo',{type:'text',value:F.repo||'sasha-apps/arbeitstag-daten'});
+    const [tw,ti]=field('Zugangsschlüssel (Token)',{type:'password',value:F.token||'',placeholder:'github_pat_…',autocomplete:'off'});
+    const [pw,pi]=field(F.need2?'Neues Passwort für die Cloud (mind. 8 Zeichen)':'Passwort',{type:'password',value:F.pass||'',autocomplete:'new-password'});
+    const [p2w,p2i]=field('Passwort wiederholen',{type:'password',autocomplete:'new-password'});
+    const ok=mk('button','primary',F.need2?'Passwort festlegen':'Verbinden');
+    ok.onclick=go(async()=>{F.repo=ri.value;F.token=ti.value;F.pass=pi.value;const r=await connect({repo:F.repo,token:F.token,pass:F.pass,pass2:F.need2?p2i.value:null});
+      if(r==='need2'){F.need2=true;SY.msg='In deinem Repo liegen noch keine Daten. Leg jetzt das Passwort fest, mit dem alles verschlüsselt wird.';SY.msgErr=false;return}
+      SY.ui='';SY.form={};SY.msg='Verbunden. Ab jetzt wird automatisch abgeglichen.';SY.msgErr=false;toast('Abgleich eingerichtet')},ok);
+    if(ui==='code'){box.append(mk('p','sub',`Repo: ${F.repo}`),pw)}else box.append(rw,tw,pw);
+    if(F.need2)box.append(p2w);
+    box.append(mk('p','sub','Das Passwort verlässt nie dein Gerät. Ohne es kann niemand die Daten in der Cloud lesen, auch GitHub nicht. Vergisst du es, bleiben deine Daten auf den Geräten erhalten.'));
+    box.append(btns(ok,cancel()),msg);setTimeout(()=>{(ui==='code'?pi:(F.need2?p2i:ti)).focus()},50);return}
+  if(!CFG){box.append(mk('p','sub','Hält Aufgaben und News-Favoriten auf iPhone und iPad gleich. Alles wird auf dem Gerät mit deinem Passwort verschlüsselt und in deinem privaten GitHub-Repo abgelegt.'));
+    const a=mk('button','primary','Einrichten');a.onclick=()=>{SY.ui='setup';SY.form={};SY.msg='';renderSync()};
+    const b=mk('button',null,'Mit anderem Gerät verbinden');b.onclick=()=>{SY.ui='code';SY.form={};SY.msg='';renderSync()};
+    box.append(btns(a,b),msg);return}
+  const st=mk('p','sub'+(CFG.err&&CFG.err!=='net'?' bad':''),syncStatus());st.id='syncStatus';box.append(st);
+  if(ui==='show'){const q=mk('div','qr');q.textContent='QR-Code wird erstellt …';
+    qrSvg(pairCode()).then(s=>{q.innerHTML=s}).catch(()=>{q.textContent='QR-Code geht gerade nicht. Nutze den Text darunter.'});
+    const code=mk('textarea');code.value=pairCode();code.readOnly=true;code.rows=3;code.setAttribute('aria-label','Verbindungscode');
+    const cp=mk('button','small','Code kopieren');cp.onclick=()=>{try{navigator.clipboard.writeText(code.value).then(()=>{cp.textContent='Kopiert'},()=>{code.select()})}catch(e){code.select()}};
+    const done=mk('button','ghost small','Fertig');done.onclick=()=>{SY.ui='';renderSync()};
+    box.append(mk('p','sub','Auf dem anderen Gerät: ⋯ → „Mit anderem Gerät verbinden“ → QR-Code scannen. Danach dort dein Passwort eingeben. Zeig diesen Code niemand anderem, er enthält deinen Zugangsschlüssel.'),q,code,btns(cp,done));return}
+  if(ui==='pass'||CFG.err==='pass'){const [pw,pi]=field('Passwort',{type:'password',autocomplete:'current-password'});const ok=mk('button','primary','Passwort prüfen');
+    ok.onclick=go(async()=>{await newPass(pi.value);SY.ui='';SY.msg='Passwort passt. Abgleich läuft wieder.';SY.msgErr=false},ok);box.append(pw,btns(ok),msg);return}
+  if(ui==='token'||CFG.err==='auth'||CFG.err==='perm'){const [tw,ti]=field('Neuer Zugangsschlüssel (Token)',{type:'password',placeholder:'github_pat_…',autocomplete:'off'});const ok=mk('button','primary','Token speichern');
+    const c2=mk('button','ghost small','Abbrechen');c2.onclick=()=>{SY.ui='';renderSync()};
+    ok.onclick=go(async()=>{await newToken(ti.value);SY.ui='';SY.msg='Token gespeichert.';SY.msgErr=false},ok);box.append(tw,btns(ok,ui==='token'?c2:''),msg);return}
+  const now=mk('button','primary small','Jetzt abgleichen');now.onclick=async()=>{SY.msg='';await syncNow();renderSync()};
+  const sh=mk('button','small','Anderes Gerät verbinden');sh.onclick=()=>{SY.ui='show';renderSync()};
+  const tk=mk('button','ghost small','Token ändern');tk.onclick=()=>{SY.ui='token';SY.msg='';renderSync()};
+  const off=mk('button','ghost small danger','Abgleich hier beenden');
+  off.onclick=()=>{if(!off.dataset.arm){off.dataset.arm=1;off.textContent='Wirklich beenden?';setTimeout(()=>{if(off.isConnected){delete off.dataset.arm;off.textContent='Abgleich hier beenden'}},3000);return}
+    clearTimeout(SY.t);CFG=null;cfgSave();setSync('');SY.msg='Abgleich auf diesem Gerät beendet. Deine Daten bleiben hier gespeichert.';SY.msgErr=false;renderSync()};
+  box.append(btns(now,sh),btns(tk,off),msg)}
+
+/* Auslöser */
+document.addEventListener('visibilitychange',()=>{if(!CFG)return;if(document.hidden){if(SY.t)syncNow()}else if(Date.now()-(CFG.last||0)>20000||SY.t)syncNow()});
+addEventListener('online',()=>{if(CFG)syncNow()});
+setInterval(()=>{if(CFG&&!document.hidden)syncNow()},90000);
+
 /* ---------- Start ---------- */
-load();render();
+load();snapInit();render();
 let st='heute';try{st=localStorage.getItem(KEY+'-tab')||'heute'}catch(e){}showTab(['welt','region'].includes(st)?st:'heute');
+if(CFG){setSync('');syncNow()}
 let lastDay=todayISO();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(todayISO()!==lastDay){lastDay=todayISO();openEdit=null}render();if(cur!=='heute'&&window.renderWelt)renderWelt()}});
 setInterval(()=>{if(todayISO()!==lastDay){lastDay=todayISO();render()}},60000);
