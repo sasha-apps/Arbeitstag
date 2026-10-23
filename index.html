@@ -661,7 +661,7 @@ async function syncNow(){if(!CFG||!CFG.key||IN_ARTIFACT)return;if(SY.busy){SY.ag
     CFG.last=Date.now();CFG.err='';cfgSave();setSync('ok')}
   catch(e){if(CFG){CFG.err=e.code||'http';cfgSave()}setSync(e.code==='net'?'offline':'err')}
   SY.busy=false;if(SY.again){SY.again=false;syncSoon(1500)}}
-function syncSoon(ms){if(!CFG||IN_ARTIFACT)return;clearTimeout(SY.t);SY.t=setTimeout(syncNow,ms==null?8000:ms)}
+function syncSoon(ms){if(!CFG||IN_ARTIFACT)return;clearTimeout(SY.t);SY.t=setTimeout(syncNow,ms==null?3000:ms)}
 function setSync(st){SY.state=st;$('menuBtn').classList.toggle('warn',!!(CFG&&CFG.err&&['auth','perm','repo','pass','public','old'].includes(CFG.err)));if(!$('sheet').hidden)renderSync()}
 
 /* Einrichten und Verbinden */
@@ -753,9 +753,9 @@ function renderSync(){const box=$('syncBox');if(!box)return;box.replaceChildren(
   box.append(btns(now,sh),btns(tk,off),msg)}
 
 /* Auslöser */
-document.addEventListener('visibilitychange',()=>{if(!CFG)return;if(document.hidden){if(SY.t)syncNow()}else if(Date.now()-(CFG.last||0)>20000||SY.t)syncNow()});
+document.addEventListener('visibilitychange',()=>{if(!CFG)return;if(document.hidden){if(SY.t)syncNow()}else if(Date.now()-(CFG.last||0)>3000||SY.t)syncNow()});
 addEventListener('online',()=>{if(CFG)syncNow()});
-setInterval(()=>{if(CFG&&!document.hidden)syncNow()},90000);
+setInterval(()=>{if(CFG&&!document.hidden)syncNow()},30000);
 
 /* ---------- Start ---------- */
 load();snapInit();render();
