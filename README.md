@@ -4,4 +4,4 @@ Ruhige To-do-App mit wiederkehrenden Aufgaben, Tagesring und Welt-Tab mit Nachri
 
 - App: https://sasha-apps.github.io/Arbeitstag/
 - Daten bleiben nur auf dem Gerät (Browser-Speicher). Sicherung über ⋯ → „Sicherung speichern“.
-- `news.json` wird stündlich von GitHub Actions aktualisiert (`.github/workflows/news.yml`). Gespeichert werden nur Schlagzeile, Anriss, Quelle, Zeit und Link.
+- `news.json` wird stündlich von GitHub Actions aktualisiert (`.github/workflows/news.yml`). Gespeichert werden nur Schlagzeile, Anriss, Quelle, Zeit, Link und ggf. die Adresse des Vorschaubilds (das Bild selbst wird nicht kopiert).

@@ -105,13 +105,13 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;pa
 /* tabs */
 nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:10;
   padding:4px max(8px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
-nav .in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:4px}
+nav .in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 nav button{background:transparent;font-size:12.5px;color:var(--muted);min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative}
 nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav button[aria-selected="true"]{color:var(--accent)}
 nav .dot{position:absolute;top:6px;left:calc(50% + 8px);width:8px;height:8px;border-radius:50%;background:var(--accent)}
-body.welt .add{display:none}
-body.welt{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+body.welt .add,body.region .add{display:none}
+body.welt,body.region{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
 /* sheet */
 .sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center}
 .sheet-in{background:var(--surface);width:100%;max-width:620px;max-height:85vh;overflow-y:auto;border-radius:18px 18px 0 0;display:flex;flex-direction:column;gap:12px;
@@ -136,7 +136,17 @@ textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;borde
 .op a.read{background:#e0452b;color:#fff;text-decoration:none;border-radius:10px;padding:10px 14px;font-weight:600;white-space:nowrap}
 .op .new{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;background:#e0452b;color:#fff;border-radius:99px;padding:2px 7px;margin-left:6px;vertical-align:3px}
 .news{background:var(--surface);border-radius:14px;overflow:hidden}
-.ni{display:block;padding:12px 14px;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.ni{display:grid;grid-template-columns:minmax(0,1fr) 40px;grid-template-areas:'t s';gap:0 6px;align-items:start;padding:10px 6px 10px 14px;border-bottom:1px solid var(--line)}
+.ni.has-img{grid-template-columns:minmax(0,1fr) 84px 40px;grid-template-areas:'t i s'}
+.ni .nl{grid-area:t;color:inherit;text-decoration:none;min-width:0;padding-block:2px}
+.ni .tha{grid-area:i;display:block;padding-top:4px}
+.ni .th{width:84px;height:64px;object-fit:cover;border-radius:8px;background:var(--sunk);display:block}
+.ni .star{grid-area:s;background:transparent;min-height:40px;min-width:40px;padding:0;font-size:20px;color:var(--muted);font-weight:400}
+.ni .star.on{color:#d9a400}
+.search{border-radius:12px;background:var(--surface)}
+.more{width:100%;border-radius:0;background:transparent;color:var(--accent)}
+.switch{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:15px}
+.switch input{width:auto;min-height:0;transform:scale(1.3)}
 .ni:last-child{border-bottom:0}
 .ni .meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
 .ni .meta b{color:var(--fg2);font-weight:600}
@@ -144,7 +154,7 @@ textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;borde
 .ni .meta .nw{width:7px;height:7px;border-radius:50%;background:var(--accent)}
 .ni .h{font-weight:600;font-size:16px;line-height:1.35;margin-top:3px;overflow-wrap:break-word}
 .ni .x{font-size:14px;color:var(--fg2);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.ni:active{background:var(--sunk)}
+.ni .nl:active{opacity:.7}
 .w-note{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.5}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -174,9 +184,20 @@ textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;borde
   <section id="v-welt" class="view" hidden>
     <div class="w-head"><h2>Welt</h2><span class="sub" id="wStand"></span></div>
     <div class="op" id="opCard" hidden></div>
+    <input class="search" id="wQ" type="search" placeholder="Suchen in 4 Wochen Nachrichten" aria-label="Nachrichten durchsuchen" autocomplete="off" enterkeyhint="search">
     <div class="chips" role="group" aria-label="Nachrichten filtern" id="wChips"></div>
+    <div class="sub" id="wInfo"></div>
     <div class="news" id="wList"></div>
     <p class="w-note">Schlagzeilen und Anrisse der jeweiligen Quellen, stündlich automatisch geholt. Antippen öffnet den vollständigen Artikel beim Anbieter.</p>
+  </section>
+
+  <section id="v-region" class="view" hidden>
+    <div class="w-head"><h2>Region</h2><span class="sub" id="rStand"></span></div>
+    <input class="search" id="rQ" type="search" placeholder="In der Region suchen" aria-label="Regionale Nachrichten durchsuchen" autocomplete="off" enterkeyhint="search">
+    <div class="chips" role="group" aria-label="Ort filtern" id="rChips"></div>
+    <div class="sub" id="rInfo"></div>
+    <div class="news" id="rList"></div>
+    <p class="w-note">Regionale Meldungen von NW, Westfalen-Blatt, NOZ, Radio Herford, os|radio und weiteren, gesammelt über Google News. Antippen öffnet den Artikel beim Anbieter.</p>
   </section>
 </main>
 
@@ -188,6 +209,7 @@ textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;borde
 <nav><div class="in" role="tablist">
   <button role="tab" data-v="heute" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/></svg>Heute</button>
   <button role="tab" data-v="welt" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5s1.1-5.9 3.6-8.5z"/></svg>Welt<span class="dot" id="weltDot" hidden></span></button>
+  <button role="tab" data-v="region" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>Region<span class="dot" id="regionDot" hidden></span></button>
 </div></nav>
 
 <div class="sheet" id="sheet" hidden><div class="sheet-in" role="dialog" aria-modal="true" aria-label="Einstellungen">
@@ -198,6 +220,9 @@ textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;borde
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><textarea id="bkText" aria-label="Sicherungstext" placeholder="Sicherungstext hier einfügen"></textarea>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="small" id="bkCopy">Text kopieren</button><button class="small" id="bkLoad">Text einlesen</button></div></div></details>
   <div class="msg" id="bkMsg" role="status"></div>
+  <h2 style="margin-top:6px">Nachrichten</h2>
+  <label class="switch"><span>Vorschaubilder laden<br><span class="sub">Bilder kommen direkt von den Servern der Zeitungen. Die sehen dabei deine IP-Adresse. Bilder verbrauchen etwas mehr mobile Daten.</span></span><input type="checkbox" id="imgToggle" checked></label>
+  <p class="sub" style="margin:0" id="archInfo"></p>
   <h2 style="margin-top:6px">So schreibst du Aufgaben</h2>
   <p class="sub" style="margin:0;line-height:1.6">„täglich“, „werktags“, „jeden Montag“, „montags und donnerstags“, „Mo/Mi/Fr“, „alle 3 Tage“, „alle 2 Wochen“, „monatlich am 15.“ machen eine Aufgabe wiederkehrend.<br>„heute“, „morgen“, „übermorgen“, „Freitag“, „am 24.12.“, „in 5 Tagen“, „nächste Woche“ geben einmaligen Aufgaben ein Datum.<br>Serien zählen, wie oft du eine wiederkehrende Aufgabe pünktlich schaffst. Einen Tag zu spät ist verziehen.</p>
 </div></div>
@@ -405,7 +430,7 @@ $('addForm').onsubmit=e=>{e.preventDefault();const v=$('addIn').value;if(!v.trim
 function toast(t,undoFn){const e=$('toast');$('toastTxt').textContent=t;const b=$('toastBtn');b.hidden=!undoFn;b.onclick=()=>{e.hidden=true;undoFn&&undoFn()};e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,undoFn?4500:2200)}
 
 /* ---------- Sicherung ---------- */
-const backupJSON=()=>JSON.stringify({app:'arbeitstag',version:1,saved:new Date().toISOString(),tasks:S.tasks,log:S.log});
+const backupJSON=()=>JSON.stringify({app:'arbeitstag',version:1,saved:new Date().toISOString(),tasks:S.tasks,log:S.log,favs:typeof FAVS!=='undefined'?[...FAVS.values()]:[]});
 function markBackup(){S.lastBackup=Date.now();save();bkInfo()}
 function bkInfo(){const lb=S.lastBackup?new Date(S.lastBackup).toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'}):null;
   $('bkInfo').textContent=`Deine Aufgaben liegen nur auf diesem Gerät. Speichere ab und zu eine Sicherung in der Dateien-App. ${lb?'Letzte Sicherung: '+lb+'.':'Noch keine Sicherung gespeichert.'}`}
@@ -416,11 +441,13 @@ async function saveBackup(){const name=`arbeitstag-sicherung-${todayISO()}.json`
   try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);markBackup();m.textContent='Sicherung heruntergeladen.'}
   catch(e){m.className='msg err';m.textContent='Speichern als Datei geht hier nicht. Nutze „Sicherung als Text“.'}}
 function restore(txt){const m=$('bkMsg');try{const d=JSON.parse(txt);if(d.app!=='arbeitstag'||!Array.isArray(d.tasks))throw 0;
-  S={demo:false,tasks:d.tasks,log:d.log||[],lastBackup:Date.now()};save();render();bkInfo();m.className='msg';m.textContent=`Wiederhergestellt: ${S.tasks.length} Aufgaben.`}
+  S={demo:false,tasks:d.tasks,log:d.log||[],lastBackup:Date.now()};save();render();bkInfo();
+  if(Array.isArray(d.favs)&&d.favs.length){d.favs.forEach(f=>FAVS.set(f.id,f));idbWrite('favs',d.favs,[])}
+  m.className='msg';m.textContent=`Wiederhergestellt: ${S.tasks.length} Aufgaben`+(d.favs&&d.favs.length?`, ${d.favs.length} Favoriten.`:'.')}
   catch(e){m.className='msg err';m.textContent='Das ist keine gültige ArbeitsTag-Sicherung.'}}
 let restoreArm=false;
 function armRestore(btn,fn){if(!S.demo&&S.tasks.length&&!restoreArm){restoreArm=true;const o=btn.textContent;btn.textContent='Ersetzt alle aktuellen Aufgaben. Nochmal tippen';setTimeout(()=>{restoreArm=false;btn.textContent=o},3500);return}restoreArm=false;fn()}
-$('menuBtn').onclick=()=>{bkInfo();$('sheet').hidden=false};$('sheetClose').onclick=()=>$('sheet').hidden=true;$('sheet').onclick=e=>{if(e.target===$('sheet'))$('sheet').hidden=true};
+$('menuBtn').onclick=()=>{bkInfo();$('archInfo').textContent=`Auf diesem Gerät gespeichert: ${ARCH.size} Meldungen der letzten 4 Wochen, ${FAVS.size} Favoriten.`;$('sheet').hidden=false};$('sheetClose').onclick=()=>$('sheet').hidden=true;$('sheet').onclick=e=>{if(e.target===$('sheet'))$('sheet').hidden=true};
 $('bkSave').onclick=saveBackup;$('bkOpen').onclick=e=>armRestore(e.currentTarget,()=>$('bkFile').click());
 $('bkFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>restore(String(r.result));r.readAsText(f);e.target.value=''};
 $('bkCopy').onclick=()=>{const txt=backupJSON();$('bkText').value=txt;const m=$('bkMsg');m.className='msg';const fb=()=>{$('bkText').focus();$('bkText').select();m.textContent='Text ist markiert. Jetzt kopieren.'};
@@ -432,57 +459,99 @@ $('clearDemo').onclick=()=>{S={demo:false,tasks:[],log:[],lastBackup:S.lastBacku
 let cur='heute';
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.v));
 function showTab(v){cur=v;document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));
-  $('v-heute').hidden=v!=='heute';$('v-welt').hidden=v!=='welt';document.body.classList.toggle('welt',v==='welt');
+  $('v-heute').hidden=v!=='heute';$('v-welt').hidden=v!=='welt';$('v-region').hidden=v!=='region';
+  document.body.classList.toggle('welt',v==='welt');document.body.classList.toggle('region',v==='region');
   try{localStorage.setItem(KEY+'-tab',v)}catch(e){}
-  if(v==='welt'&&window.renderWelt)renderWelt();window.scrollTo(0,0)}
-/* ---------- Welt: Nachrichten ---------- */
-const NKEY=KEY+'-news',SKEY=KEY+'-seen';
-let NEWS=null,wFilter='alle',newsLoading=false;
+  if(v!=='heute'&&window.renderWelt)renderWelt();window.scrollTo(0,0)}
+/* ---------- Nachrichten: Archiv (4 Wochen), Suche, Favoriten, Bilder ---------- */
+const NKEY=KEY+'-news',SKEY=KEY+'-seen',IMGKEY=KEY+'-img',ARCH_DAYS=28;
+let NEWS=null,newsLoading=false,ARCH=new Map(),FAVS=new Map(),IMG=true;
+const VIEW={welt:{f:'alle',q:'',n:60},region:{f:'alle',q:'',n:60}};
 try{NEWS=JSON.parse(localStorage.getItem(NKEY)||'null')}catch(e){}
-try{wFilter=localStorage.getItem(KEY+'-wf')||'alle'}catch(e){}
+try{IMG=localStorage.getItem(IMGKEY)!=='0'}catch(e){}
+try{const v=JSON.parse(localStorage.getItem(KEY+'-view')||'{}');for(const k in v)if(VIEW[k])VIEW[k].f=v[k]}catch(e){}
 function seenGet(){try{return JSON.parse(localStorage.getItem(SKEY)||'{}')}catch(e){return {}}}
 function seenSet(o){try{localStorage.setItem(SKEY,JSON.stringify(o))}catch(e){}}
 function ago(ts){const m=Math.round((Date.now()/1000-ts)/60);if(m<1)return 'gerade eben';if(m<60)return `vor ${m} Min.`;const h=Math.round(m/60);if(h<24)return `vor ${h} Std.`;
-  return new Date(ts*1000).toLocaleDateString('de-DE',{day:'numeric',month:'short'})}
+  const d=Math.round(h/24);if(d<7)return d===1?'gestern':`vor ${d} Tagen`;return new Date(ts*1000).toLocaleDateString('de-DE',{day:'numeric',month:'short'})}
+/* IndexedDB: Archiv + Favoriten bleiben auf dem Gerät */
+let dbP=null;
+function db(){if(dbP)return dbP;dbP=new Promise((res)=>{try{const r=indexedDB.open('arbeitstag-news',1);
+  r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('items'))d.createObjectStore('items',{keyPath:'id'});if(!d.objectStoreNames.contains('favs'))d.createObjectStore('favs',{keyPath:'id'})};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)}catch(e){res(null)}});return dbP}
+async function idbAll(store){const d=await db();if(!d)return [];return new Promise(res=>{try{const q=d.transaction(store).objectStore(store).getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([])}catch(e){res([])}})}
+async function idbWrite(store,puts,dels){const d=await db();if(!d)return;return new Promise(res=>{try{const tx=d.transaction(store,'readwrite'),os=tx.objectStore(store);
+  (puts||[]).forEach(x=>os.put(x));(dels||[]).forEach(k=>os.delete(k));tx.oncomplete=()=>res();tx.onerror=()=>res()}catch(e){res()}})}
+async function initArchive(){const [items,favs]=await Promise.all([idbAll('items'),idbAll('favs')]);
+  items.forEach(i=>ARCH.set(i.id,i));favs.forEach(i=>FAVS.set(i.id,i));
+  if(NEWS)await mergeNews(NEWS.items);renderNewsViews()}
+async function mergeNews(items){const cut=Date.now()/1000-ARCH_DAYS*86400,puts=[],dels=[];
+  items.forEach(i=>{const o=ARCH.get(i.id);if(!o||o.title!==i.title||o.img!==i.img){ARCH.set(i.id,i);puts.push(i)}});
+  for(const [k,i] of ARCH)if(i.ts<cut){ARCH.delete(k);dels.push(k)}
+  if(puts.length||dels.length)await idbWrite('items',puts,dels)}
+async function toggleFav(i){if(FAVS.has(i.id)){FAVS.delete(i.id);await idbWrite('favs',[],[i.id])}else{const f={...i,favAt:Date.now()};FAVS.set(i.id,f);await idbWrite('favs',[f],[])}}
 async function loadNews(){if(newsLoading||IN_ARTIFACT)return;newsLoading=true;
-  try{const r=await fetch('news.json?t='+Math.floor(Date.now()/600000),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.items)){NEWS=d;try{localStorage.setItem(NKEY,JSON.stringify(d))}catch(e){}}}}
-  catch(e){}newsLoading=false;updateDot();if(cur==='welt')renderWelt()}
-function updateDot(){const sn=seenGet();const op=NEWS&&NEWS.onepiece;
+  try{const r=await fetch('news.json?t='+Math.floor(Date.now()/600000),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.items)){NEWS=d;try{localStorage.setItem(NKEY,JSON.stringify(d))}catch(e){}await mergeNews(d.items)}}}
+  catch(e){}newsLoading=false;updateDots();renderNewsViews()}
+function updateDots(){const sn=seenGet();const op=NEWS&&NEWS.onepiece;const items=[...ARCH.values()];
   const newOp=!!(op&&op.chapter&&sn.op&&op.chapter>sn.op);
-  const newItems=!!(NEWS&&NEWS.items.some(i=>i.ts>(sn.ts||0)));
-  $('weltDot').hidden=!(newOp||(cur!=='welt'&&newItems&&sn.ts))}
-const CATS=[['alle','Alle'],['welt','Welt'],['de','Deutschland'],['region','Region'],['Herford','Herford'],['Melle','Melle'],['Bielefeld','Bielefeld'],['Osnabrück','Osnabrück']];
-function renderWelt(){
-  const ch=$('wChips');if(!ch.childElementCount)CATS.forEach(([k,l])=>{const b=mk('button','chip',l);b.dataset.k=k;b.onclick=()=>{wFilter=k;try{localStorage.setItem(KEY+'-wf',k)}catch(e){}renderWelt()};ch.append(b)});
-  ch.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===wFilter));
-  const list=$('wList');list.replaceChildren();const sn=seenGet();
-  if(!NEWS){$('wStand').textContent='';list.append(mk('div','empty',IN_ARTIFACT?'Nachrichten erscheinen, sobald die App über GitHub läuft. In dieser Vorschau gibt es keine Nachrichten.':'Nachrichten werden geladen … Ohne Internet siehst du hier den letzten Stand.'));$('opCard').hidden=true;return}
-  $('wStand').textContent='Stand: '+new Date(NEWS.updated*1000).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+(Date.now()/1000-NEWS.updated>3*3600?' ('+ago(NEWS.updated)+')':'');
-  // One Piece
-  const op=NEWS.onepiece,oc=$('opCard');oc.replaceChildren();
-  if(op&&op.link){oc.hidden=false;const l=mk('div');l.append(mk('div','k','One Piece'));const c=mk('div','c',op.chapter?`Kapitel ${op.chapter}`:'Neuestes Kapitel');
-    if(op.chapter&&op.chapter>(sn.op||0)&&sn.op)c.append(mk('span','new','NEU'));l.append(c);
-    const a=mk('a','read','Jetzt lesen');a.href=op.link;a.target='_blank';a.rel='noopener';a.onclick=()=>{const s2=seenGet();s2.op=op.chapter||0;seenSet(s2);setTimeout(()=>{renderWelt();updateDot()},300)};
-    const s=mk('div','s',(op.chapter?`Laut Nachrichten seit ${ago(op.seen)} erschienen`:'Kapitelnummer gerade nicht ermittelbar')+(op.next?` · Kapitel ${op.next} angekündigt`:'')+' · offiziell und kostenlos bei MANGA Plus');
-    oc.append(l,a,s);if(!sn.op&&op.chapter){sn.op=op.chapter;seenSet(sn)}}else oc.hidden=true;
-  // Liste
-  const f=wFilter;const items=NEWS.items.filter(i=>f==='alle'?true:['welt','de','region'].includes(f)?i.cat===f:i.place===f);
-  if(!items.length)list.append(mk('div','empty','Gerade keine Meldungen in diesem Bereich.'));
-  const lastTs=sn.ts||0;
-  items.slice(0,f==='alle'?60:40).forEach(i=>{const a=mk('a','ni');a.href=i.link;a.target='_blank';a.rel='noopener';
-    const m=mk('div','meta');if(lastTs&&i.ts>lastTs)m.append(mk('span','nw'));m.append(mk('b',null,i.src||''));if(i.place)m.append(mk('span','pl',i.place));m.append(mk('span',null,ago(i.ts)));
-    a.append(m,mk('div','h',i.title));if(i.summary)a.append(mk('div','x',i.summary));list.append(a)});
-  const top=Math.max(0,...NEWS.items.map(i=>i.ts));if(top>(sn.ts||0)){setTimeout(()=>{const s2=seenGet();s2.ts=top;seenSet(s2)},1500)}
-  updateDot()}
-window.renderWelt=renderWelt;
-loadNews();setInterval(()=>{if(!document.hidden)loadNews()},20*60000);
+  const newW=items.some(i=>i.cat!=='region'&&i.ts>(sn.ts||0)),newR=items.some(i=>i.cat==='region'&&i.ts>(sn.rts||0));
+  $('weltDot').hidden=!(newOp||(cur!=='welt'&&newW&&sn.ts));$('regionDot').hidden=!(cur!=='region'&&newR&&sn.rts)}
+const CHIPS={welt:[['alle','Alle'],['welt','Welt'],['de','Deutschland'],['fav','☆ Favoriten']],
+  region:[['alle','Alle'],['Herford','Herford'],['Melle','Melle'],['Bielefeld','Bielefeld'],['Osnabrück','Osnabrück'],['fav','☆ Favoriten']]};
+const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss');
+function newsRow(i,lastTs){const row=mk('div','ni'+(IMG&&i.img?' has-img':''));
+  const a=mk('a','nl');a.href=i.link;a.target='_blank';a.rel='noopener';
+  const m=mk('div','meta');if(lastTs&&i.ts>lastTs)m.append(mk('span','nw'));m.append(mk('b',null,i.src||''));if(i.place)m.append(mk('span','pl',i.place));m.append(mk('span',null,ago(i.ts)));
+  a.append(m,mk('div','h',i.title));if(i.summary)a.append(mk('div','x',i.summary));row.append(a);
+  if(IMG&&i.img){const im=mk('img','th');im.src=i.img;im.alt='';im.loading='lazy';im.decoding='async';im.referrerPolicy='no-referrer';im.onerror=()=>{im.remove();row.classList.remove('has-img')};
+    const ia=mk('a','tha');ia.href=i.link;ia.target='_blank';ia.rel='noopener';ia.tabIndex=-1;ia.setAttribute('aria-hidden','true');ia.append(im);row.append(ia)}
+  const fav=FAVS.has(i.id);const st=mk('button','star'+(fav?' on':''),fav?'★':'☆');st.setAttribute('aria-label',fav?'Aus Favoriten entfernen':'Als Favorit merken');st.setAttribute('aria-pressed',fav);
+  st.onclick=async()=>{await toggleFav(i);renderNewsViews();toast(FAVS.has(i.id)?'Als Favorit gemerkt':'Aus Favoriten entfernt')};row.append(st);return row}
+function renderNewsView(tab){
+  const V=VIEW[tab],P=tab==='welt'?'w':'r';
+  const ch=$(P+'Chips');if(!ch.childElementCount)CHIPS[tab].forEach(([k,l])=>{const b=mk('button','chip',l);b.dataset.k=k;b.onclick=()=>{V.f=k;V.n=60;
+    try{const v=JSON.parse(localStorage.getItem(KEY+'-view')||'{}');v[tab]=k;localStorage.setItem(KEY+'-view',JSON.stringify(v))}catch(e){}renderNewsView(tab)};ch.append(b)});
+  ch.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===V.f));
+  const sq=$(P+'Q');if(document.activeElement!==sq)sq.value=V.q;
+  const list=$(P+'List');list.replaceChildren();const sn=seenGet();
+  $(P+'Stand').textContent=NEWS&&NEWS.updated?'Stand: '+new Date(NEWS.updated*1000).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+(Date.now()/1000-NEWS.updated>3*3600?' ('+ago(NEWS.updated)+')':''):'';
+  if(tab==='welt')renderOp(sn);
+  const inScope=i=>tab==='region'?i.cat==='region':i.cat!=='region';
+  let pool=V.f==='fav'?[...FAVS.values()].filter(inScope).sort((a,b)=>b.favAt-a.favAt):[...ARCH.values()].filter(inScope);
+  if(V.f!=='fav'&&!pool.length&&NEWS)pool=NEWS.items.filter(inScope);
+  if(V.f!=='alle'&&V.f!=='fav')pool=pool.filter(i=>tab==='region'?i.place===V.f:i.cat===V.f);
+  const words=norm(V.q).split(/\s+/).filter(Boolean);
+  if(words.length)pool=pool.filter(i=>{const h=norm(i.title+' '+(i.summary||'')+' '+(i.src||'')+' '+(i.place||''));return words.every(w=>h.includes(w))});
+  if(V.f!=='fav')pool.sort((a,b)=>b.ts-a.ts);
+  const info=$(P+'Info');info.textContent=words.length?`${pool.length} Treffer in den letzten 4 Wochen`:(V.f==='fav'?`${pool.length} Favoriten`:'');
+  if(!pool.length){list.append(mk('div','empty',IN_ARTIFACT&&V.f!=='fav'?'Nachrichten erscheinen, sobald die App über GitHub läuft. In dieser Vorschau gibt es keine Nachrichten.':
+    words.length?'Nichts gefunden. Versuch ein anderes Wort.':V.f==='fav'?'Noch keine Favoriten. Tippe bei einer Meldung auf ☆, um sie dir zu merken.':NEWS?'Gerade keine Meldungen in diesem Bereich.':'Nachrichten werden geladen … Ohne Internet siehst du hier den letzten Stand.'));}
+  const lastTs=tab==='region'?(sn.rts||0):(sn.ts||0);
+  pool.slice(0,V.n).forEach(i=>list.append(newsRow(i,lastTs)));
+  if(pool.length>V.n){const more=mk('button','more',`Weitere ${Math.min(60,pool.length-V.n)} anzeigen`);more.onclick=()=>{V.n+=60;renderNewsView(tab)};list.append(more)}
+  if(cur===tab){const top=Math.max(0,...[...ARCH.values()].filter(inScope).map(i=>i.ts));const key=tab==='region'?'rts':'ts';
+    if(top>(sn[key]||0))setTimeout(()=>{const s2=seenGet();s2[key]=top;seenSet(s2);updateDots()},1500)}
+  updateDots()}
+function renderOp(sn){const op=NEWS&&NEWS.onepiece,oc=$('opCard');oc.replaceChildren();
+  if(!(op&&op.link)){oc.hidden=true;return}oc.hidden=false;const l=mk('div');l.append(mk('div','k','One Piece'));const c=mk('div','c',op.chapter?`Kapitel ${op.chapter}`:'Neuestes Kapitel');
+  if(op.chapter&&sn.op&&op.chapter>sn.op)c.append(mk('span','new','NEU'));l.append(c);
+  const a=mk('a','read','Jetzt lesen');a.href=op.link;a.target='_blank';a.rel='noopener';a.onclick=()=>{const s2=seenGet();s2.op=op.chapter||0;seenSet(s2);setTimeout(()=>renderNewsViews(),300)};
+  oc.append(l,a,mk('div','s',(op.chapter?`Laut Nachrichten seit ${ago(op.seen)} erschienen`:'Kapitelnummer gerade nicht ermittelbar')+(op.next?` · Kapitel ${op.next} angekündigt`:'')+' · offiziell und kostenlos bei MANGA Plus'));
+  if(!sn.op&&op.chapter){sn.op=op.chapter;seenSet(sn)}}
+function renderNewsViews(){if(cur==='welt')renderNewsView('welt');else if(cur==='region')renderNewsView('region');else updateDots()}
+window.renderWelt=renderNewsViews;
+['w','r'].forEach(P=>{const tab=P==='w'?'welt':'region';let t;$(P+'Q').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{VIEW[tab].q=e.target.value;VIEW[tab].n=60;renderNewsView(tab)},150)}});
+$('imgToggle').checked=IMG;$('imgToggle').onchange=e=>{IMG=e.target.checked;try{localStorage.setItem(IMGKEY,IMG?'1':'0')}catch(x){}renderNewsViews()};
+initArchive().then(()=>loadNews());setInterval(()=>{if(!document.hidden)loadNews()},20*60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadNews()});
+
 
 /* ---------- Start ---------- */
 load();render();
-let st='heute';try{st=localStorage.getItem(KEY+'-tab')||'heute'}catch(e){}showTab(st==='welt'?'welt':'heute');
+let st='heute';try{st=localStorage.getItem(KEY+'-tab')||'heute'}catch(e){}showTab(['welt','region'].includes(st)?st:'heute');
 let lastDay=todayISO();
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(todayISO()!==lastDay){lastDay=todayISO();openEdit=null}render();if(cur==='welt'&&window.renderWelt)renderWelt()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(todayISO()!==lastDay){lastDay=todayISO();openEdit=null}render();if(cur!=='heute'&&window.renderWelt)renderWelt()}});
 setInterval(()=>{if(todayISO()!==lastDay){lastDay=todayISO();render()}},60000);
 if(!IN_ARTIFACT&&'serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 </script>

@@ -9,7 +9,7 @@ from datetime import datetime, timezone, timedelta
 
 UA = "Mozilla/5.0 (compatible; ArbeitsTag-NewsBot/1.0; +https://github.com/sasha-apps)"
 NOW = datetime.now(timezone.utc)
-MAX_AGE_H = {"welt": 36, "de": 36, "region": 96}
+MAX_AGE_H = {"welt": 72, "de": 72, "region": 96}
 
 def gnews(q, lang="de"):
     if lang == "de":
@@ -78,6 +78,31 @@ def parse_date(s):
         d = d.replace(tzinfo=timezone.utc)
     return d
 
+def find_img(it):
+    """Vorschaubild-URL aus media:content/thumbnail, enclosure oder erstem <img> im Text (nur https)."""
+    cands = []
+    for c in it.iter():
+        t = local(c.tag)
+        if t in ("thumbnail", "content") and c.get("url"):
+            if t == "thumbnail" or (c.get("medium") == "image" or (c.get("type") or "").startswith("image") or re.search(r"\.(jpe?g|png|webp)(\?|$)", c.get("url"), re.I)):
+                cands.append(c.get("url"))
+        elif t == "enclosure" and (c.get("type") or "").startswith("image") and c.get("url"):
+            cands.append(c.get("url"))
+    if not cands:
+        for c in it:
+            if local(c.tag) in ("description", "encoded", "content", "summary") and c.text:
+                m = re.search(r"<img[^>]+src=[\"']([^\"']+)", c.text, re.I)
+                if m:
+                    cands.append(html.unescape(m.group(1)))
+                    break
+    for u in cands:
+        u = u.strip()
+        if u.startswith("//"):
+            u = "https:" + u
+        if u.startswith("https://") and len(u) < 600:
+            return u
+    return ""
+
 def parse_feed(raw):
     """RSS 2.0, RDF/RSS 1.0 und Atom."""
     root = ET.fromstring(raw)
@@ -93,7 +118,7 @@ def parse_feed(raw):
         summary = text(it, "description", "summary", "content")
         date = parse_date(text(it, "pubdate", "date", "updated", "published"))
         src = child(it, "source")
-        out.append({"title": title, "link": link.strip(), "summary": summary, "date": date,
+        out.append({"title": title, "link": link.strip(), "summary": summary, "date": date, "img": find_img(it),
                     "source": (src.text or "").strip() if src is not None and src.text else ""})
     return out
 
@@ -129,7 +154,8 @@ def main(out_path):
                 if name is None or summ.lower().startswith(title.lower()[:40]):
                     summ = ""
                 items.append({"id": hashlib.sha1((e["link"] + title).encode()).hexdigest()[:12], "cat": cat, "src": src,
-                              "place": place, "title": title, "summary": summ, "link": e["link"], "ts": int(d.timestamp())})
+                              "place": place, "title": title, "summary": summ, "link": e["link"], "ts": int(d.timestamp()),
+                              **({"img": e["img"]} if e["img"] else {})})
                 n += 1
             status.append({"feed": place or name, "cat": cat, "ok": True, "items": n})
         except Exception as ex:
@@ -141,9 +167,9 @@ def main(out_path):
     caps, kept = {}, []
     for it in items:
         k = it["place"] or it["cat"]
-        lim = 15 if it["cat"] == "region" else 40
+        lim = 25 if it["cat"] == "region" else 80
         sk = "src:" + it["cat"] + it["src"]
-        if caps.get(k, 0) < lim and (it["cat"] == "region" or caps.get(sk, 0) < 10):
+        if caps.get(k, 0) < lim and (it["cat"] == "region" or caps.get(sk, 0) < 15):
             caps[k] = caps.get(k, 0) + 1
             caps[sk] = caps.get(sk, 0) + 1
             kept.append(it)
