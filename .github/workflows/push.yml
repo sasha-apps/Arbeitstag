@@ -11,7 +11,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: push
@@ -32,4 +32,10 @@ jobs:
       - name: Fällige Benachrichtigungen senden
         env:
           DATA_TOKEN: ${{ secrets.DATA_TOKEN }}
-        run: python3 .github/scripts/send_push.py ${{ inputs.probe && '--probe' || '' }}
+        run: python3 .github/scripts/send_push.py ${{ inputs.probe && '--probe' || '' }} | tee /tmp/out.txt
+      - name: Prüfergebnis ablegen (nur Prüfmodus)
+        if: ${{ inputs.probe }}
+        run: |
+          git config user.name arbeitstag-bot && git config user.email arbeitstag-bot@users.noreply.github.com
+          git checkout --orphan probe && git rm -rfq . && cp /tmp/out.txt probe.txt && git add probe.txt
+          git commit -qm probe && git push -fq origin probe
