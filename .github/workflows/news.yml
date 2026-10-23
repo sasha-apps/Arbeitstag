@@ -1,0 +1,34 @@
+name: Nachrichten aktualisieren
+
+on:
+  schedule:
+    - cron: "23 * * * *"   # stündlich (GitHub startet geplante Läufe manchmal etwas später)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Feeds abrufen
+        run: python3 .github/scripts/fetch_news.py news.json
+      - name: Speichern, falls sich etwas geändert hat
+        run: |
+          if git diff --quiet -- news.json; then
+            echo "Keine Änderungen."
+            exit 0
+          fi
+          git config user.name "arbeitstag-bot"
+          git config user.email "arbeitstag-bot@users.noreply.github.com"
+          git add news.json
+          git commit -m "Nachrichten aktualisiert"
+          git pull --rebase --autostash
+          git push

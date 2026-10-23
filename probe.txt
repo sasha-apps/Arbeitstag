@@ -1,0 +1,33 @@
+warning: 2 Einträge
+  Felder: ['abnormalTrafficType', 'coordinate', 'delayTimeValue', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'source', 'startLcPosition', 'startTimestamp', 'subtitle', 'title']
+  Titel: A30 | Hiddenhausen - Bruchmühlen | Untertitel:  Bad Oeynhausen -> Osnabrück | Richtung erkannt: ['W']
+  Text: Stau zwischen Hiddenhausen und Bruchmühlen (+15 Min.)
+  Felder: ['abnormalTrafficType', 'coordinate', 'delayTimeValue', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'source', 'startLcPosition', 'startTimestamp', 'subtitle', 'title']
+  Titel: A30 | Hiddenhausen - Bruchmühlen | Untertitel:  Bad Oeynhausen -> Osnabrück | Richtung erkannt: ['W']
+  Text: Verkehrsmeldung zwischen Hiddenhausen und Bruchmühlen (+4 Min.)
+closure: 13 Einträge
+  Felder: ['coordinate', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'impact', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'startLcPosition', 'subtitle', 'title']
+  Titel: A30 | Ibbenbüren-West - Rheine | Untertitel:  Osnabrück -> Rheine | Richtung erkannt: ['W']
+  Text: Sperrung zwischen Ibbenbüren-West und Rheine
+  Felder: ['coordinate', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'impact', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'startLcPosition', 'subtitle', 'title']
+  Titel: A31 - Freileitungsarbeiten - Der Verkehr wird zwischen 7 Uhr und 10 Uhr mehrmals für max. 15 Min. angehalten - AkD 52592 | Untertitel:  AK Schüttorfer Kreuz (aus Richtung Salzbergen) | Richtung erkannt: ['E', 'W']
+  Text: Sperrung: Freileitungsarbeiten: Der Verkehr wird zwischen 7 Uhr und 10 Uhr mehrmals für max. 15…
+  Felder: ['coordinate', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'impact', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'startLcPosition', 'subtitle', 'title']
+  Titel: A30 - Freileitungsarbeiten - Der Verkehr wird zwischen 7 Uhr und 10 Uhr mehrmals für max. 15 Min. angehalten - AkD 52600 | Untertitel:  AK Schüttorfer Kreuz (aus Richtung Schüttorf-Nord) | Richtung erkannt: ['E', 'W']
+  Text: Sperrung: Freileitungsarbeiten: Der Verkehr wird zwischen 7 Uhr und 10 Uhr mehrmals für max. 15…
+  Felder: ['coordinate', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'impact', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'startLcPosition', 'subtitle', 'title']
+  Titel: A30 - Freileitungsarbeiten - Der Verkehr wird zwischen 7 Uhr und 10 Uhr mehrmals für max. 15 Min. angehalten - AkD 52600 | Untertitel:  AK Schüttorfer Kreuz (aus Richtung Schüttorf-Ost) | Richtung erkannt: ['E', 'W']
+  Text: Sperrung: Freileitungsarbeiten: Der Verkehr wird zwischen 7 Uhr und 10 Uhr mehrmals für max. 15…
+roadworks: 47 Einträge
+  Felder: ['coordinate', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'impact', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'startLcPosition', 'subtitle', 'title']
+  Titel: A30 | Bad Bentheim - Schüttorf-Nord | Untertitel:  Amsterdam -> Rheine | Richtung erkannt: ['E']
+  Text: Baustelle zwischen Bad Bentheim und Schüttorf-Nord
+  Felder: ['coordinate', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'impact', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'startLcPosition', 'subtitle', 'title']
+  Titel: A30 | Bad Bentheim - Schüttorf-Nord | Untertitel:  Amsterdam -> Rheine | Richtung erkannt: ['E']
+  Text: Baustelle zwischen Bad Bentheim und Schüttorf-Nord
+  Felder: ['coordinate', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'impact', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'startLcPosition', 'subtitle', 'title']
+  Titel: A30 | Bad Bentheim - Schüttorf-Nord | Untertitel:  Amsterdam -> Rheine | Richtung erkannt: ['E']
+  Text: Baustelle zwischen Bad Bentheim und Schüttorf-Nord
+  Felder: ['coordinate', 'description', 'display_type', 'extent', 'footer', 'future', 'geometry', 'icon', 'identifier', 'impact', 'isBlocked', 'lorryParkingFeatureIcons', 'point', 'routeRecommendation', 'startLcPosition', 'subtitle', 'title']
+  Titel: A30 | Bad Bentheim - Gildehaus | Untertitel:  Amsterdam -> Rheine | Richtung erkannt: ['E']
+  Text: Baustelle zwischen Bad Bentheim und Gildehaus
