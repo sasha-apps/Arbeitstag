@@ -255,5 +255,17 @@ def main():
         _, sent_sha = get_file("sent.json")
 
 
+def probe():
+    """Prüft das Format der öffentlichen Autobahn-Daten (keine persönlichen Angaben)."""
+    for kind in ("warning", "closure", "roadworks"):
+        data = fetch_json(f"{AUTOBAHN}/A30/services/{kind}").get(kind) or []
+        print(f"{kind}: {len(data)} Einträge")
+        for it in data[:4]:
+            text = " ".join([it.get("title") or "", it.get("subtitle") or ""] + list(it.get("description") or []))
+            print("  Felder:", sorted(it.keys()))
+            print("  Titel:", it.get("title"), "| Untertitel:", it.get("subtitle"), "| Richtung erkannt:", sorted(item_dirs(text)))
+            print("  Text:", describe(it, kind))
+
+
 if __name__ == "__main__":
-    main()
+    probe() if "--probe" in sys.argv else main()
