@@ -4,8 +4,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ArbeitsTag">
-<meta name="theme-color" content="#f2f4f3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111413" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f1f3f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1218" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
@@ -16,17 +16,17 @@
 <style>
 /* Layout: one calm column; daily ring as the hero, quick-add bar pinned to the bottom; tab bar for "Heute" and "Welt" */
 :root{
-  --bg:#f2f4f3; --surface:#ffffff; --sunk:#eef1ef; --fg:#1b1f1e; --fg2:#56605c; --muted:#8a948f; --line:#e1e6e3;
-  --accent:#2e8b67; --accent-soft:#e1f1e9; --on-accent:#ffffff; --late:#b8562b; --late-soft:#f8e9e1;
+  --bg:#f1f3f7; --surface:#ffffff; --sunk:#eceff4; --fg:#1a1d24; --fg2:#535b6a; --muted:#868e9c; --line:#dfe3ea;
+  --accent:#1f4e8c; --accent-soft:#e3ebf6; --on-accent:#ffffff; --accent-inv:#9cc0f0; --late:#b8562b; --late-soft:#f8e9e1;
   --display:"Avenir Next","Avenir",system-ui,-apple-system,"Segoe UI",sans-serif;
   --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#111413; --surface:#1a1e1d; --sunk:#151918; --fg:#e9eeeb; --fg2:#b7c0bb; --muted:#85908a; --line:#28302d;
-  --accent:#4fbf92; --accent-soft:#17322a; --on-accent:#0c1a14; --late:#e3895f; --late-soft:#3a2219; color-scheme:dark}}
+  --bg:#0f1218; --surface:#181c24; --sunk:#13161d; --fg:#e8ecf3; --fg2:#b4bccb; --muted:#828b9b; --line:#262c37;
+  --accent:#7fa8e0; --accent-soft:#1a2a42; --on-accent:#0b1626; --accent-inv:#1f4e8c; --late:#e3895f; --late-soft:#3a2219; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#111413; --surface:#1a1e1d; --sunk:#151918; --fg:#e9eeeb; --fg2:#b7c0bb; --muted:#85908a; --line:#28302d;
-  --accent:#4fbf92; --accent-soft:#17322a; --on-accent:#0c1a14; --late:#e3895f; --late-soft:#3a2219; color-scheme:dark}
+  --bg:#0f1218; --surface:#181c24; --sunk:#13161d; --fg:#e8ecf3; --fg2:#b4bccb; --muted:#828b9b; --line:#262c37;
+  --accent:#7fa8e0; --accent-soft:#1a2a42; --on-accent:#0b1626; --accent-inv:#1f4e8c; --late:#e3895f; --late-soft:#3a2219; color-scheme:dark}
 [hidden]{display:none!important}
 html,body,button,input,select,textarea,a{touch-action:manipulation}
 html,body{min-height:100%}
@@ -135,8 +135,8 @@ textarea{width:100%;min-height:80px;font:16px ui-monospace,Menlo,monospace;borde
 video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-fit:cover}
 #menuBtn{position:relative}
 #menuBtn.warn::after{content:'';position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--late)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(140px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;font-weight:600;z-index:60;max-width:calc(100% - 32px);text-align:center;display:flex;gap:12px;align-items:center}
-.toast button{background:transparent;color:var(--accent);min-height:28px;padding:0 4px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(140px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;font-weight:600;z-index:60;width:max-content;max-width:calc(100% - 32px);box-sizing:border-box;text-align:center;display:flex;gap:12px;align-items:center}
+.toast button{background:transparent;color:var(--accent-inv);min-height:28px;padding:0 4px}
 /* Welt */
 .w-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
 .w-head h2{font:600 28px/1.05 var(--display);margin:0}
