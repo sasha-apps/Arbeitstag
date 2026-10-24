@@ -1157,10 +1157,12 @@ const SP_AREAS=[{name:'Bruchmühlen',lat:52.2003,lon:8.4554},{name:'Melle',lat:5
 let SPR=null;try{SPR=JSON.parse(localStorage.getItem(KEY+'-sprit')||'null')}catch(e){}
 const euro=p=>p?p.toFixed(3).replace('.',',')+' €':'–';
 async function loadSprit(force){if(!PREF.tk||IN_ARTIFACT)return;if(!force&&SPR&&SPR.k===PREF.tk&&Date.now()-SPR.at<10*60000)return;
-  const out={at:Date.now(),k:PREF.tk,areas:[]};
-  for(const a of SP_AREAS){let r;try{r=await fetch('https://creativecommons.tankerkoenig.de/json/list.php?'+new URLSearchParams({lat:a.lat,lng:a.lon,rad:'4',sort:'dist',type:'all',apikey:PREF.tk}))}catch(e){throw syncErr('net')}
-    const j=await r.json().catch(()=>({}));if(!j.ok)throw syncErr('tk');
-    out.areas.push({name:a.name,st:(j.stations||[]).map(s=>({n:s.brand||s.name,street:[s.street,s.houseNumber].filter(Boolean).join(' '),place:s.place,open:s.isOpen,e5:s.e5,e10:s.e10,diesel:s.diesel}))})}
+  // Tankerkönig erlaubt nur eine Abfrage pro Minute: ein Umkreis über beide Orte, danach dem näheren Ort zuordnen
+  let r;try{r=await fetch('https://creativecommons.tankerkoenig.de/json/list.php?'+new URLSearchParams({lat:'52.202',lng:'8.396',rad:'8',sort:'dist',type:'all',apikey:PREF.tk}))}catch(e){throw syncErr('net')}
+  const j=await r.json().catch(()=>({}));if(!j.ok)throw syncErr('tk');
+  const out={at:Date.now(),k:PREF.tk,areas:SP_AREAS.map(a=>({name:a.name,st:[]}))};
+  for(const s of j.stations||[]){const km=SP_AREAS.map(a=>distKm(a.lat,a.lon,s.lat,s.lng)),i=km[0]<=km[1]?0:1;if(km[i]>5)continue;
+    out.areas[i].st.push({n:s.brand||s.name,street:[s.street,s.houseNumber].filter(Boolean).join(' '),place:s.place,open:s.isOpen,e5:s.e5,e10:s.e10,diesel:s.diesel})}
   SPR=out;try{localStorage.setItem(KEY+'-sprit',JSON.stringify(out))}catch(e){}}
 function cheapest(area,fuel,n){return area.st.filter(s=>s.open&&typeof s[fuel]==='number'&&s[fuel]>0).sort((a,b)=>a[fuel]-b[fuel]).slice(0,n)}
 function renderSprit(){const box=$('spritBox');box.replaceChildren();
