@@ -631,7 +631,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadNews()
 
 /* ---------- Blitzer: feste Anlagen und angekündigte Messstellen ---------- */
 const BKEY=KEY+'-blitzer',FALLBACK_CENTER={name:'Bruchmühlen',lat:52.2075,lon:8.4283};
-let BLZ=null,BPOS=null,BF='nah',BN=60;
+let BLZ=null,BPOS=null,BF='nah',BN=60,BDAY=null;
 try{BLZ=JSON.parse(localStorage.getItem(BKEY)||'null')}catch(e){}
 try{BF=(JSON.parse(localStorage.getItem(KEY+'-view')||'{}')).blitzer||'nah'}catch(e){}
 const BCHIPS=[['nah','In der Nähe'],['plan','Angekündigt'],['fest','Feste Anlagen']];
@@ -663,9 +663,11 @@ function blitzerPool(){
     name:m.road||m.place,place:m.place,date:m.date,src:m.src,exact:m.approx===false,
     km:m.lat!=null?distKm(o.lat,o.lon,m.lat,m.lon):null}));
   let pool;
-  if(BF==='fest')pool=fix.slice();
-  else if(BF==='plan')pool=mob.slice();
-  else pool=mob.filter(m=>m.date===t).concat(fix);
+  if(BF==='fest'){pool=fix.slice();BDAY=null}
+  else if(BF==='plan'){pool=mob.slice();BDAY=null}
+  else{ // heute, und wenn für heute nichts angekündigt ist, der nächste Tag mit Einträgen
+    BDAY=mob.some(m=>m.date===t)?t:(mob.length?mob.map(m=>m.date).sort()[0]:null);
+    pool=mob.filter(m=>m.date===BDAY).concat(fix)}
   const byKm=(a,b)=>(a.km==null)-(b.km==null)||(a.km||0)-(b.km||0);
   if(BF==='plan')pool.sort((a,b)=>a.date.localeCompare(b.date)||byKm(a,b));
   else pool.sort(byKm);
@@ -697,10 +699,10 @@ function renderBlitzer(){
 
   const list=$('bList');list.replaceChildren();
   const pool=blitzerPool();
-  const today=(BLZ&&BLZ.mobile||[]).filter(m=>m.date===todayISO()).length;
+  const nMob=BDAY?(BLZ.mobile||[]).filter(m=>m.date===BDAY).length:0;
   $('bInfo').textContent=!BLZ?'':BF==='fest'?`${pool.length} feste Anlagen`
     :BF==='plan'?`${pool.length} angekündigte Messstellen`
-    :`${today} für heute angekündigt, dazu ${(BLZ.fixed||[]).length} feste Anlagen`;
+    :(nMob?`${nMob} für ${dayLabel(BDAY)} angekündigt, dazu `:'')+`${(BLZ.fixed||[]).length} feste Anlagen`;
   if(!pool.length){list.append(mk('div','empty',IN_ARTIFACT?'Blitzer erscheinen, sobald die App über GitHub läuft. In dieser Vorschau gibt es keine Daten.'
     :!BLZ?'Standorte werden geladen … Ohne Internet siehst du hier den letzten Stand.'
     :BF==='plan'?'Gerade sind keine Messstellen angekündigt.'
