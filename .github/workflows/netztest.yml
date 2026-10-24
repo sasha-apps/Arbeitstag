@@ -1,0 +1,54 @@
+name: Netztest (einmalig)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dienste anfragen
+        run: |
+          python3 - <<'PY' > netztest.txt 2>&1
+          import urllib.request, urllib.parse, json, time
+          UA = "Mozilla/5.0 (compatible; ArbeitsTag-BlitzerBot/1.0; +https://github.com/sasha-apps)"
+          def probe(name, url, data=None):
+              t0 = time.time()
+              try:
+                  hdr = {"User-Agent": UA}
+                  if data:
+                      hdr["Content-Type"] = "application/x-www-form-urlencoded"
+                      data = urllib.parse.urlencode({"data": data}).encode()
+                  req = urllib.request.Request(url, data=data, headers=hdr)
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      body = r.read(400).decode("utf-8", "replace").replace("\n", " ")
+                  print(f"OK   {name:34s} {time.time()-t0:5.1f}s  {body[:180]}")
+              except Exception as e:
+                  print(f"FAIL {name:34s} {time.time()-t0:5.1f}s  {type(e).__name__}: {str(e)[:150]}")
+
+          Q = '[out:json][timeout:25];node["highway"="speed_camera"](52.19,8.39,52.24,8.47);out tags center;'
+          for host in ["https://overpass.kumi.systems", "https://overpass-api.de",
+                       "https://overpass.private.coffee", "https://overpass.osm.jp",
+                       "https://overpass.osm.ch", "https://maps.mail.ru/osm/tools/overpass"]:
+              probe(host.split("//")[1] + " /status", host + "/api/status")
+              probe(host.split("//")[1] + " QUERY", host + "/api/interpreter", Q)
+          probe("photon.komoot.io", "https://photon.komoot.io/api/?q=Bruchstra%C3%9Fe%20R%C3%B6dinghausen&limit=1")
+          probe("photon.komoot.de", "https://photon.komoot.de/api/?q=Bruchstra%C3%9Fe%20R%C3%B6dinghausen&limit=1")
+          probe("nominatim", "https://nominatim.openstreetmap.org/search?q=Bruchstra%C3%9Fe%2C+R%C3%B6dinghausen&format=json&limit=1")
+          probe("kreis-herford.de", "https://www.kreis-herford.de/Startseite/Blitzer/")
+          PY
+          cat netztest.txt
+      - name: Ergebnis speichern
+        run: |
+          git config user.name "arbeitstag-bot"
+          git config user.email "arbeitstag-bot@users.noreply.github.com"
+          git add netztest.txt
+          git diff --cached --quiet -- netztest.txt && exit 0
+          git commit -m "Netztest"
+          git pull --rebase --autostash
+          git push
