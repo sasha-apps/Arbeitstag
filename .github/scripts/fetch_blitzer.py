@@ -14,7 +14,12 @@ import json, re, sys, html, time, math, urllib.request, urllib.parse
 from datetime import datetime, timezone, date
 
 UA = "Mozilla/5.0 (compatible; ArbeitsTag-BlitzerBot/1.0; +https://github.com/sasha-apps)"
-OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+# Mehrere Spiegel, weil der Hauptserver Anfragen aus Rechenzentren oft abweist
+OVERPASS = ["https://overpass.kumi.systems/api/interpreter",
+            "https://overpass-api.de/api/interpreter",
+            "https://overpass.private.coffee/api/interpreter",
+            "https://overpass.osm.jp/api/interpreter"]
+PHOTON = "https://photon.komoot.io/api/"   # Ausweichweg nur fürs Geokodieren
 
 KH_URL = "https://www.kreis-herford.de/Startseite/Blitzer/"
 LKOS_URL = "https://www.landkreis-osnabrueck.de/fachthemen/ordnung-und-verkehr/baustellen-und-blitzplan"
@@ -23,10 +28,19 @@ CENTER = {"name": "Bruchmühlen", "lat": 52.2075, "lon": 8.4283}
 NEAR_KM = 30.0            # so weit schauen wir um Bruchmühlen herum
 BBOX = (52.00, 8.10, 52.50, 9.00)   # Kreis Herford, Melle und Umgebung
 MAX_PLACE_KM = 7.0        # so weit darf eine Straße vom Ortsmittelpunkt entfernt sein
+# Ausweichliste, falls die Ortsabfrage scheitert: Orte im Landkreis Osnabrück im Umkreis
+NAHE_ORTE_LKOS = {"Melle", "Bad Essen", "Dissen", "Dissen am Teutoburger Wald", "Hilter",
+                  "Hilter am Teutoburger Wald", "Bad Laer", "Bissendorf", "Ostercappeln",
+                  "Bohmte", "Glandorf", "Georgsmarienhütte"}
+
+
+DIAG = []    # wandert mit in die JSON-Datei, damit man den Lauf auch ohne Protokoll nachvollziehen kann
 
 
 def log(*a):
-    print(*a, file=sys.stderr, flush=True)
+    msg = " ".join(str(x) for x in a)
+    print(msg, file=sys.stderr, flush=True)
+    DIAG.append(msg.strip())
 
 
 def fetch(url, data=None, tries=2, timeout=90):
@@ -301,8 +315,44 @@ def geocode(mobile, places):
         e["lat"] = sum(x[1] for x in best) / len(best)
         e["lon"] = sum(x[2] for x in best) / len(best)
         hit += 1
-    log(f"  {hit} von {sum(1 for e in mobile if e['road'])} Messstellen verortet")
+    log(f"  {hit} von {sum(1 for e in mobile if e['road'])} Messstellen über OpenStreetMap verortet")
+    photon_fill(mobile)
     return mobile
+
+
+def photon_fill(mobile):
+    """Was Overpass nicht liefern konnte, über Photon nachschlagen (eine Anfrage je Straße)."""
+    todo = [e for e in mobile if e["road"] and e["lat"] is None]
+    if not todo:
+        return
+    cache, hit = {}, 0
+    for e in todo:
+        key = (e["place"], e["road"])
+        if key not in cache:
+            try:
+                url = PHOTON + urllib.parse.urlencode(
+                    {"q": f'{e["road"]}, {e["place"]}', "limit": 5, "lang": "de"})
+                j = json.loads(fetch(url, tries=1, timeout=30))
+                pick = None
+                for ft in j.get("features", []):
+                    p = ft.get("properties", {})
+                    g = ft.get("geometry", {}).get("coordinates")
+                    if not g:
+                        continue
+                    if p.get("osm_key") == "highway" or p.get("street") or p.get("name"):
+                        d = haversine(CENTER["lat"], CENTER["lon"], g[1], g[0])
+                        if d <= NEAR_KM + 15:
+                            pick = (g[1], g[0])
+                            break
+                cache[key] = pick
+            except Exception as ex:
+                cache[key] = None
+                log(f"  Photon für {e['road']} ({e['place']}) fehlgeschlagen: {ex}")
+            time.sleep(1.2)
+        if cache[key]:
+            e["lat"], e["lon"] = cache[key]
+            hit += 1
+    log(f"  {hit} weitere Messstellen über Photon verortet")
 
 
 def confirm_center(places):
@@ -349,12 +399,14 @@ def main(path):
     keep = []
     for e in mobile:
         p = pl.get(e["place"])
-        if not p:
-            if e["src"] == "Kreis Herford":
-                keep.append(e)      # Ort unbekannt, Eintrag bleibt ohne Entfernung
+        if p:
+            if haversine(CENTER["lat"], CENTER["lon"], p["lat"], p["lon"]) <= NEAR_KM:
+                e["lat"], e["lon"] = p["lat"], p["lon"]
+                keep.append(e)
             continue
-        if haversine(CENTER["lat"], CENTER["lon"], p["lat"], p["lon"]) <= NEAR_KM:
-            e["lat"], e["lon"] = p["lat"], p["lon"]
+        # Ortsliste nicht verfügbar: im Kreis Herford ist ohnehin alles nah genug,
+        # im Landkreis Osnabrück entscheidet eine feste Liste der nahen Orte
+        if e["src"] == "Kreis Herford" or e["place"] in NAHE_ORTE_LKOS:
             keep.append(e)
     mobile = keep
 
@@ -386,6 +438,7 @@ def main(path):
             {"name": "Landkreis Osnabrück", "url": LKOS_URL,
              "note": "Geschwindigkeitsmessplan, nur Tag und Ort"},
         ],
+        "_diag": DIAG[-40:],
     }
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
