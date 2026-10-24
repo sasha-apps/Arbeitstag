@@ -22,13 +22,13 @@ jobs:
         run: python3 .github/scripts/fetch_blitzer.py blitzer.json
       - name: Speichern, falls sich etwas geändert hat
         run: |
-          if git diff --quiet -- blitzer.json; then
-            echo "Keine Änderungen."
-            exit 0
-          fi
           git config user.name "arbeitstag-bot"
           git config user.email "arbeitstag-bot@users.noreply.github.com"
           git add blitzer.json
+          if git diff --cached --quiet -- blitzer.json; then
+            echo "Keine Änderungen."
+            exit 0
+          fi
           git commit -m "Blitzer aktualisiert"
           git pull --rebase --autostash
           git push
