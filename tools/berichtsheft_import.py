@@ -24,7 +24,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 REPO = "sasha-apps/arbeitstag-daten"
 FILE = "berichtsheft.sync"
 VAULT = Path(__file__).resolve().parents[3] / "Vault"          # John/Code/Arbeitstag/tools → John/Vault
-FOLDER = "10 Arbeit/Tagesnotizen"
+FOLDER = "10 Berichtsheft/Tagesnotizen"
 TEMPLATE = "Vorlagen/Tagesnotiz.md"
 KEYFILE = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "ArbeitsTag" / "schluessel.txt"
 START, END = "%% ArbeitsTag %%", "%% /ArbeitsTag %%"
