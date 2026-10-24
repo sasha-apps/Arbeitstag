@@ -16,21 +16,28 @@
 <style>
 /* Layout: one calm column; daily ring as the hero, quick-add bar pinned to the bottom; tab bar for "Heute" and "Welt" */
 :root{
-  --bg:#f1f3f7; --surface:#ffffff; --sunk:#eceff4; --fg:#1a1d24; --fg2:#535b6a; --muted:#868e9c; --line:#dfe3ea;
-  --accent:#1f4e8c; --accent-soft:#e3ebf6; --on-accent:#ffffff; --accent-inv:#9cc0f0; --late:#b8562b; --late-soft:#f8e9e1;
+  --bg:#eef1f7; --bg-top:#f7f9fd; --surface:#ffffff; --sunk:#e8ecf3; --fg:#1b2029; --fg2:#4f5a6b; --muted:#8a93a3; --line:#dde3ec;
+  --accent:#3b6cb0; --accent-soft:#e4ecf8; --on-accent:#ffffff; --accent-inv:#9cc0f0; --late:#b8562b; --late-soft:#f8e9e1;
+  --done:#2e9a6a; --done-soft:#ddf2e8; --on-done:#ffffff;
+  --shadow:0 1px 2px rgba(27,32,41,.05),0 10px 24px -14px rgba(27,32,41,.18);
   --display:"Avenir Next","Avenir",system-ui,-apple-system,"Segoe UI",sans-serif;
   --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f1218; --surface:#181c24; --sunk:#13161d; --fg:#e8ecf3; --fg2:#b4bccb; --muted:#828b9b; --line:#262c37;
-  --accent:#7fa8e0; --accent-soft:#1a2a42; --on-accent:#0b1626; --accent-inv:#1f4e8c; --late:#e3895f; --late-soft:#3a2219; color-scheme:dark}}
+  --bg:#10141c; --bg-top:#161c27; --surface:#1a1f2a; --sunk:#14181f; --fg:#e8ecf3; --fg2:#b4bccb; --muted:#828b9b; --line:#262d3a;
+  --accent:#88b2ea; --accent-soft:#1b2b45; --on-accent:#0b1626; --accent-inv:#3b6cb0; --late:#e3895f; --late-soft:#3a2219;
+  --done:#5fd29a; --done-soft:#163329; --on-done:#07231a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 24px -14px rgba(0,0,0,.6); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f1218; --surface:#181c24; --sunk:#13161d; --fg:#e8ecf3; --fg2:#b4bccb; --muted:#828b9b; --line:#262c37;
-  --accent:#7fa8e0; --accent-soft:#1a2a42; --on-accent:#0b1626; --accent-inv:#1f4e8c; --late:#e3895f; --late-soft:#3a2219; color-scheme:dark}
+  --bg:#10141c; --bg-top:#161c27; --surface:#1a1f2a; --sunk:#14181f; --fg:#e8ecf3; --fg2:#b4bccb; --muted:#828b9b; --line:#262d3a;
+  --accent:#88b2ea; --accent-soft:#1b2b45; --on-accent:#0b1626; --accent-inv:#3b6cb0; --late:#e3895f; --late-soft:#3a2219;
+  --done:#5fd29a; --done-soft:#163329; --on-done:#07231a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 24px -14px rgba(0,0,0,.6); color-scheme:dark}
 [hidden]{display:none!important}
 html,body,button,input,select,textarea,a{touch-action:manipulation}
 html,body{min-height:100%}
-body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;
+body{background:var(--bg);background-image:linear-gradient(180deg,var(--bg-top) 0,var(--bg) 380px);background-attachment:fixed;
+  color:var(--fg);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   padding-block:0 calc(150px + env(safe-area-inset-bottom,0px))}
 main{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
@@ -41,6 +48,8 @@ main{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 button,input,select,textarea{font:inherit;color:inherit}
 button{border:0;background:var(--sunk);border-radius:10px;padding:10px 14px;cursor:pointer;min-height:44px;font-weight:600}
 button.primary{background:var(--accent);color:var(--on-accent)}
+@supports (background:color-mix(in srgb,red,blue)){
+  button.primary{background:linear-gradient(155deg,color-mix(in srgb,var(--accent) 82%,#fff),var(--accent))}}
 button.ghost{background:transparent;color:var(--fg2);font-weight:500}
 button.small{min-height:36px;padding:6px 10px;font-size:14px}
 button.danger{color:var(--late)}
@@ -53,21 +62,24 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;pa
 .ringwrap{position:relative;width:76px;height:76px;flex-shrink:0}
 .ringwrap svg{width:76px;height:76px;transform:rotate(-90deg)}
 .ringwrap .bgc{stroke:var(--line)}
-.ringwrap .fgc{stroke:var(--accent);transition:stroke-dashoffset .6s cubic-bezier(.3,.7,.3,1)}
+.ringwrap .fgc{stroke:url(#ringGrad);transition:stroke-dashoffset .6s cubic-bezier(.3,.7,.3,1)}
+.ringwrap .g1{stop-color:var(--accent)}
+.ringwrap .g2{stop-color:var(--done)}
 .ringwrap .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
 .ringwrap .lbl b{font:600 19px var(--display)}
 .ringwrap .lbl span{font-size:10.5px;color:var(--muted);margin-top:3px}
 .ringwrap.full svg{animation:glow 1.6s ease-out 1}
-@keyframes glow{0%{filter:drop-shadow(0 0 0 transparent)}40%{filter:drop-shadow(0 0 10px var(--accent))}100%{filter:drop-shadow(0 0 0 transparent)}}
+@keyframes glow{0%{filter:drop-shadow(0 0 0 transparent)}40%{filter:drop-shadow(0 0 10px var(--done))}100%{filter:drop-shadow(0 0 0 transparent)}}
 .iconbtn{background:transparent;min-height:40px;min-width:40px;padding:0;color:var(--fg2);font-size:22px;line-height:1}
-.calm{background:var(--accent-soft);border-radius:14px;padding:16px;text-align:center;color:var(--fg)}
+.calm{background:var(--done-soft);background-image:linear-gradient(150deg,var(--done-soft),var(--accent-soft));border-radius:16px;padding:16px;text-align:center;color:var(--fg)}
 .calm b{display:block;font:600 19px var(--display);margin-bottom:2px}
 .banner{border-radius:12px;padding:12px 14px;font-size:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--sunk);color:var(--fg2)}
 /* lists */
 .sec{display:flex;flex-direction:column;gap:6px}
 .sec-h{display:flex;justify-content:space-between;align-items:center;background:transparent;padding:6px 2px;min-height:36px;color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
 .sec-h .cnt{font-variant-numeric:tabular-nums}
-.list{background:var(--surface);border-radius:14px;overflow:hidden}
+#secDone .sec-h{color:var(--done)}
+.list{background:var(--surface);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
 .task{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:start;gap:4px;padding:6px 12px 6px 6px;border-bottom:1px solid var(--line);transition:opacity .35s ease,transform .35s ease,max-height .35s ease;max-height:400px}
 .task:last-child{border-bottom:0}
 .task.leaving{opacity:0;transform:translateX(24px);max-height:0;padding-block:0}
@@ -76,16 +88,18 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;pa
 .chk{width:44px;height:44px;min-height:44px;padding:0;background:transparent;display:flex;align-items:center;justify-content:center}
 .chk svg{width:26px;height:26px}
 .chk .o{fill:none;stroke:var(--muted);stroke-width:1.8;transition:stroke .2s,fill .25s}
-.chk .t{fill:none;stroke:var(--on-accent);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:14;stroke-dashoffset:14;transition:stroke-dashoffset .3s .1s ease-out}
-.chk.on .o{fill:var(--accent);stroke:var(--accent)}
+.chk .t{fill:none;stroke:var(--on-done);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:14;stroke-dashoffset:14;transition:stroke-dashoffset .3s .1s ease-out}
+.chk.on .o{fill:var(--done);stroke:var(--done)}
 .chk.on .t{stroke-dashoffset:0}
-.chk:active .o{stroke:var(--accent)}
+.chk.on svg{animation:pop .4s cubic-bezier(.34,1.56,.64,1) 1}
+@keyframes pop{0%{transform:scale(.8)}55%{transform:scale(1.12)}100%{transform:scale(1)}}
+.chk:active .o{stroke:var(--done)}
 .tb{min-width:0;padding:10px 0 8px;cursor:pointer}
 .tt{overflow-wrap:break-word;font-size:16.5px}
 .tm{display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:2px}
 .tm .late{color:var(--late);font-weight:600}
-.tm .strk{color:var(--accent);font-weight:600}
-.done .tt{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.tm .strk{color:var(--done);font-weight:600}
+.done .tt{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--done)}
 .edit{grid-column:1/-1;display:flex;flex-direction:column;gap:10px;padding:4px 6px 12px 50px}
 .edit .row{display:flex;gap:8px;flex-wrap:wrap}
 .edit .hint{font-size:13px;color:var(--fg2)}
@@ -95,7 +109,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;pa
 .add{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:9;background:linear-gradient(to top,var(--bg) 70%,transparent);
   padding:14px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
 .add form{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
-.add .bar{display:flex;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:5px;box-shadow:0 4px 18px rgba(0,0,0,.06)}
+.add .bar{display:flex;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:5px;box-shadow:var(--shadow)}
 .add input{border:0;background:transparent;min-height:44px}
 .add input:focus-visible{outline:none}
 .add .bar:focus-within{border-color:var(--accent)}
@@ -105,13 +119,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;pa
 /* tabs */
 nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:10;
   padding:4px max(8px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
-nav .in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
-nav button{background:transparent;font-size:12.5px;color:var(--muted);min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative}
+nav .in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:2px}
+nav button{background:transparent;font-size:12.5px;color:var(--muted);min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;border-radius:12px;transition:background .25s ease,color .2s ease}
+nav button[aria-selected="true"]{background:var(--accent-soft)}
 nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav button[aria-selected="true"]{color:var(--accent)}
 nav .dot{position:absolute;top:6px;left:calc(50% + 8px);width:8px;height:8px;border-radius:50%;background:var(--accent)}
-body.welt .add,body.region .add{display:none}
-body.welt,body.region{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+body.welt .add,body.region .add,body.blitzer .add{display:none}
+body.welt,body.region,body.blitzer{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
 /* sheet */
 .sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center}
 .sheet-in{background:var(--surface);width:100%;max-width:620px;max-height:85vh;overflow-y:auto;border-radius:18px 18px 0 0;display:flex;flex-direction:column;gap:12px;
@@ -144,13 +159,13 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;min-height:36px;padding:6px 14px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-weight:500;font-size:14px;color:var(--fg2)}
 .chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.op{background:var(--surface);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;border-left:4px solid #e0452b}
+.op{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;border-left:4px solid #e0452b}
 .op .k{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .op .c{font:600 22px/1.15 var(--display)}
 .op .s{grid-column:1/-1;font-size:13px;color:var(--fg2)}
 .op a.read{background:#e0452b;color:#fff;text-decoration:none;border-radius:10px;padding:10px 14px;font-weight:600;white-space:nowrap}
 .op .new{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;background:#e0452b;color:#fff;border-radius:99px;padding:2px 7px;margin-left:6px;vertical-align:3px}
-.news{background:var(--surface);border-radius:14px;overflow:hidden}
+.news{background:var(--surface);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
 .ni{display:grid;grid-template-columns:minmax(0,1fr) 40px;grid-template-areas:'t s';gap:0 6px;align-items:start;padding:10px 6px 10px 14px;border-bottom:1px solid var(--line)}
 .ni.has-img{grid-template-columns:minmax(0,1fr) 84px 40px;grid-template-areas:'t i s'}
 .ni .nl{grid-area:t;color:inherit;text-decoration:none;min-width:0;padding-block:2px}
@@ -171,6 +186,20 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
 .ni .x{font-size:14px;color:var(--fg2);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .ni .nl:active{opacity:.7}
 .w-note{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.5}
+/* Blitzer */
+.bl{background:var(--surface);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.bi{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 12px;padding:11px 14px;border-bottom:1px solid var(--line);align-items:center}
+.bi:last-child{border-bottom:0}
+.bi .n{font-weight:600;font-size:16px;overflow-wrap:break-word}
+.bi .m{font-size:12.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bi .km{grid-row:1/3;grid-column:2;font:600 15px/1.1 var(--display);color:var(--fg2);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.bi .km small{display:block;font-size:10.5px;font-weight:500;color:var(--muted)}
+.bi .tag{border-radius:99px;padding:1px 8px;font-weight:600;background:var(--sunk);color:var(--fg2)}
+.bi .tag.now{background:var(--late-soft);color:var(--late)}
+.bi .tag.fix{background:var(--accent-soft);color:var(--accent)}
+.bl-loc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.bl-note{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.5}
+.bl-warn{background:var(--late-soft);color:var(--late);border-radius:12px;padding:10px 14px;font-size:13px;line-height:1.45}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -180,7 +209,7 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
     <div class="day"><div class="wd" id="hWd"></div><div class="dt" id="hDt"></div></div>
     <div style="display:flex;align-items:center;gap:6px">
       <div class="ringwrap" id="ring" role="img" aria-label="Tagesfortschritt">
-        <svg viewBox="0 0 76 76"><circle class="bgc" cx="38" cy="38" r="32" fill="none" stroke-width="7"/><circle class="fgc" id="ringFg" cx="38" cy="38" r="32" fill="none" stroke-width="7" stroke-linecap="round" stroke-dasharray="201.06" stroke-dashoffset="201.06"/></svg>
+        <svg viewBox="0 0 76 76"><defs><linearGradient id="ringGrad" gradientUnits="userSpaceOnUse" x1="6" y1="70" x2="70" y2="6"><stop class="g1" offset="0"/><stop class="g2" offset="1"/></linearGradient></defs><circle class="bgc" cx="38" cy="38" r="32" fill="none" stroke-width="7"/><circle class="fgc" id="ringFg" cx="38" cy="38" r="32" fill="none" stroke-width="7" stroke-linecap="round" stroke-dasharray="201.06" stroke-dashoffset="201.06"/></svg>
         <div class="lbl"><b class="num" id="ringN">0</b><span id="ringS">von 0</span></div>
       </div>
       <button class="iconbtn" id="menuBtn" aria-label="Einstellungen und Sicherung">⋯</button>
@@ -214,6 +243,16 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
     <div class="news" id="rList"></div>
     <p class="w-note">Regionale Meldungen von NW, Westfalen-Blatt, NOZ, Radio Herford, os|radio und weiteren, gesammelt über Google News. Antippen öffnet den Artikel beim Anbieter.</p>
   </section>
+
+  <section id="v-blitzer" class="view" hidden>
+    <div class="w-head"><h2>Blitzer</h2><span class="sub" id="bStand"></span></div>
+    <div class="bl-warn">Während der Fahrt darfst du eine Blitzer-Warnung nicht benutzen (§ 23 Abs. 1c StVO). Schau vorher drauf oder lass jemand anderen schauen.</div>
+    <div class="bl-loc"><button class="small" id="bLoc">Meinen Standort verwenden</button><span id="bLocInfo"></span></div>
+    <div class="chips" role="group" aria-label="Blitzer filtern" id="bChips"></div>
+    <div class="sub" id="bInfo"></div>
+    <div class="bl" id="bList"></div>
+    <p class="bl-note" id="bNote"></p>
+  </section>
 </main>
 
 <div class="add" id="addWrap"><form id="addForm" autocomplete="off">
@@ -225,6 +264,7 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
   <button role="tab" data-v="heute" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/></svg>Heute</button>
   <button role="tab" data-v="welt" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5s1.1-5.9 3.6-8.5z"/></svg>Welt<span class="dot" id="weltDot" hidden></span></button>
   <button role="tab" data-v="region" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>Region<span class="dot" id="regionDot" hidden></span></button>
+  <button role="tab" data-v="blitzer" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 8.5h3.2l1.4-2h6.8l1.4 2H20v10H4z"/><circle cx="12" cy="13" r="3.4"/></svg>Blitzer<span class="dot" id="blitzerDot" hidden></span></button>
 </div></nav>
 
 <div class="sheet" id="sheet" hidden><div class="sheet-in" role="dialog" aria-modal="true" aria-label="Einstellungen">
@@ -498,10 +538,13 @@ $('clearDemo').onclick=()=>{S={demo:false,tasks:[],log:[],del:{},lastBackup:S.la
 let cur='heute';
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.v));
 function showTab(v){cur=v;document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));
-  $('v-heute').hidden=v!=='heute';$('v-welt').hidden=v!=='welt';$('v-region').hidden=v!=='region';
+  $('v-heute').hidden=v!=='heute';$('v-welt').hidden=v!=='welt';$('v-region').hidden=v!=='region';$('v-blitzer').hidden=v!=='blitzer';
   document.body.classList.toggle('welt',v==='welt');document.body.classList.toggle('region',v==='region');
+  document.body.classList.toggle('blitzer',v==='blitzer');
   try{localStorage.setItem(KEY+'-tab',v)}catch(e){}
-  if(v!=='heute'&&window.renderWelt)renderWelt();window.scrollTo(0,0)}
+  if(v==='blitzer'&&window.renderBlitzer)renderBlitzer();
+  else if(v!=='heute'&&window.renderWelt)renderWelt();
+  window.scrollTo(0,0)}
 /* ---------- Nachrichten: Archiv (4 Wochen), Suche, Favoriten, Bilder ---------- */
 const NKEY=KEY+'-news',SKEY=KEY+'-seen',IMGKEY=KEY+'-img',ARCH_DAYS=28;
 let NEWS=null,newsLoading=false,ARCH=new Map(),FAVS=new Map(),IMG=true;
@@ -584,6 +627,101 @@ window.renderWelt=renderNewsViews;
 $('imgToggle').checked=IMG;$('imgToggle').onchange=e=>{IMG=e.target.checked;try{localStorage.setItem(IMGKEY,IMG?'1':'0')}catch(x){}renderNewsViews()};
 const ARCH_READY=initArchive();ARCH_READY.then(()=>loadNews());setInterval(()=>{if(!document.hidden)loadNews()},20*60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadNews()});
+
+
+/* ---------- Blitzer: feste Anlagen und angekündigte Messstellen ---------- */
+const BKEY=KEY+'-blitzer',FALLBACK_CENTER={name:'Bruchmühlen',lat:52.2075,lon:8.4283};
+let BLZ=null,BPOS=null,BF='nah',BN=60;
+try{BLZ=JSON.parse(localStorage.getItem(BKEY)||'null')}catch(e){}
+try{BF=(JSON.parse(localStorage.getItem(KEY+'-view')||'{}')).blitzer||'nah'}catch(e){}
+const BCHIPS=[['nah','In der Nähe'],['plan','Angekündigt'],['fest','Feste Anlagen']];
+
+function distKm(aLat,aLon,bLat,bLon){const R=6371,r=x=>x*Math.PI/180;
+  const dp=r(bLat-aLat),dl=r(bLon-aLon);
+  const s=Math.sin(dp/2)**2+Math.cos(r(aLat))*Math.cos(r(bLat))*Math.sin(dl/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(s)))}
+const bOrigin=()=>BPOS||(BLZ&&BLZ.center)||FALLBACK_CENTER;
+const kmTxt=k=>k==null?'–':(k<10?k.toFixed(1).replace('.',','):Math.round(k))+' km';
+function dayLabel(d){const t=todayISO();if(d===t)return 'heute';if(d===addDays(t,1))return 'morgen';
+  return D(d).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'numeric'})}
+
+async function loadBlitzer(){
+  try{const r=await fetch('blitzer.json?t='+Math.floor(Date.now()/1800000),{cache:'no-store'});
+    if(r.ok){const d=await r.json();
+      if(d&&(Array.isArray(d.fixed)||Array.isArray(d.mobile))){BLZ=d;
+        try{localStorage.setItem(BKEY,JSON.stringify(d))}catch(e){}}}}
+  catch(e){}
+  if(cur==='blitzer')renderBlitzer()}
+
+function blitzerPool(){
+  if(!BLZ)return [];
+  const o=bOrigin(),t=todayISO();
+  const fix=(BLZ.fixed||[]).filter(c=>c.lat!=null).map(c=>({kind:'fix',
+    name:c.road||'Feste Anlage',place:c.place,maxspeed:c.maxspeed,red:c.kind==='red_light',
+    km:distKm(o.lat,o.lon,c.lat,c.lon),exact:true}));
+  const mob=(BLZ.mobile||[]).filter(m=>m.date>=t).map(m=>({kind:'mob',
+    name:m.road||m.place,place:m.place,date:m.date,src:m.src,exact:!!m.road,
+    km:m.lat!=null?distKm(o.lat,o.lon,m.lat,m.lon):null}));
+  let pool;
+  if(BF==='fest')pool=fix.slice();
+  else if(BF==='plan')pool=mob.slice();
+  else pool=mob.filter(m=>m.date===t).concat(fix);
+  const byKm=(a,b)=>(a.km==null)-(b.km==null)||(a.km||0)-(b.km||0);
+  if(BF==='plan')pool.sort((a,b)=>a.date.localeCompare(b.date)||byKm(a,b));
+  else pool.sort(byKm);
+  return pool}
+
+function blRow(x){const row=mk('div','bi');
+  const m=mk('div','m');
+  if(x.kind==='fix'){m.append(mk('span','tag fix',x.red?'Rotlicht':'Fest'));
+    if(x.maxspeed)m.append(mk('span',null,'Tempo '+x.maxspeed))}
+  else{const now=x.date===todayISO();m.append(mk('span','tag'+(now?' now':''),dayLabel(x.date)))}
+  m.append(mk('span',null,x.place));
+  if(x.kind==='mob')m.append(mk('span',null,x.src));
+  const k=mk('div','km',kmTxt(x.km));
+  if(x.km!=null&&!x.exact)k.append(mk('small',null,'ungefähr'));
+  row.append(mk('div','n',x.name),m,k);return row}
+
+function renderBlitzer(){
+  const ch=$('bChips');
+  if(!ch.childElementCount)BCHIPS.forEach(([k,l])=>{const b=mk('button','chip',l);b.dataset.k=k;
+    b.onclick=()=>{BF=k;BN=60;
+      try{const v=JSON.parse(localStorage.getItem(KEY+'-view')||'{}');v.blitzer=k;localStorage.setItem(KEY+'-view',JSON.stringify(v))}catch(e){}
+      renderBlitzer()};ch.append(b)});
+  ch.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===BF));
+
+  $('bStand').textContent=BLZ&&BLZ.updated?'Stand: '+new Date(BLZ.updated*1000).toLocaleDateString('de-DE',{day:'numeric',month:'numeric'})
+    +', '+new Date(BLZ.updated*1000).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
+  $('bLocInfo').textContent=BPOS?'Entfernung ab deinem Standort':'Entfernung ab '+bOrigin().name;
+  $('bLoc').textContent=BPOS?'Standort aktualisieren':'Meinen Standort verwenden';
+
+  const list=$('bList');list.replaceChildren();
+  const pool=blitzerPool();
+  const today=(BLZ&&BLZ.mobile||[]).filter(m=>m.date===todayISO()).length;
+  $('bInfo').textContent=!BLZ?'':BF==='fest'?`${pool.length} feste Anlagen`
+    :BF==='plan'?`${pool.length} angekündigte Messstellen`
+    :`${today} für heute angekündigt, dazu ${(BLZ.fixed||[]).length} feste Anlagen`;
+  if(!pool.length){list.append(mk('div','empty',IN_ARTIFACT?'Blitzer erscheinen, sobald die App über GitHub läuft. In dieser Vorschau gibt es keine Daten.'
+    :!BLZ?'Standorte werden geladen … Ohne Internet siehst du hier den letzten Stand.'
+    :BF==='plan'?'Gerade sind keine Messstellen angekündigt.'
+    :BF==='nah'?'Für heute ist nichts angekündigt, und es sind keine festen Anlagen bekannt.':'Keine festen Anlagen bekannt.'))}
+  pool.slice(0,BN).forEach(x=>list.append(blRow(x)));
+  if(pool.length>BN){const more=mk('button','more',`Weitere ${Math.min(60,pool.length-BN)} anzeigen`);
+    more.onclick=()=>{BN+=60;renderBlitzer()};list.append(more)}
+  $('bNote').textContent='Feste Anlagen aus OpenStreetMap. Angekündigte Messstellen vom Kreis Herford (tagesgenau mit Straße) '
+    +'und vom Landkreis Osnabrück (nur Tag und Ort). Gemessen werden kann auch anderswo.'}
+window.renderBlitzer=renderBlitzer;
+
+$('bLoc').onclick=()=>{
+  if(!navigator.geolocation){$('bLocInfo').textContent='Standort geht auf diesem Gerät nicht.';return}
+  $('bLocInfo').textContent='Standort wird geholt …';
+  navigator.geolocation.getCurrentPosition(
+    p=>{BPOS={name:'dein Standort',lat:p.coords.latitude,lon:p.coords.longitude};renderBlitzer()},
+    ()=>{$('bLocInfo').textContent='Standort nicht verfügbar. Entfernung ab '+bOrigin().name+'.'},
+    {enableHighAccuracy:true,timeout:10000,maximumAge:120000})};
+
+loadBlitzer();setInterval(()=>{if(!document.hidden)loadBlitzer()},60*60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadBlitzer()});
 
 
 /* ---------- Abgleich zwischen Geräten: verschlüsselt (AES-256-GCM, Schlüssel aus Passwort) in einem privaten GitHub-Repo ---------- */
@@ -877,7 +1015,7 @@ function renderPush(){const box=$('pushBox');if(!box)return;box.replaceChildren(
 
 /* ---------- Start ---------- */
 load();snapInit();render();
-let st='heute';try{st=localStorage.getItem(KEY+'-tab')||'heute'}catch(e){}showTab(['welt','region'].includes(st)?st:'heute');
+let st='heute';try{st=localStorage.getItem(KEY+'-tab')||'heute'}catch(e){}showTab(['welt','region','blitzer'].includes(st)?st:'heute');
 if(CFG){setSync('');syncNow()}
 let lastDay=todayISO();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(todayISO()!==lastDay){lastDay=todayISO();openEdit=null}render();if(cur!=='heute'&&window.renderWelt)renderWelt()}});

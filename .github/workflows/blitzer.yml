@@ -1,0 +1,34 @@
+name: Blitzer aktualisieren
+
+on:
+  schedule:
+    - cron: "41 4,15 * * *"   # zweimal täglich (GitHub startet geplante Läufe manchmal etwas später)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: blitzer
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Standorte abrufen
+        run: python3 .github/scripts/fetch_blitzer.py blitzer.json
+      - name: Speichern, falls sich etwas geändert hat
+        run: |
+          if git diff --quiet -- blitzer.json; then
+            echo "Keine Änderungen."
+            exit 0
+          fi
+          git config user.name "arbeitstag-bot"
+          git config user.email "arbeitstag-bot@users.noreply.github.com"
+          git add blitzer.json
+          git commit -m "Blitzer aktualisiert"
+          git pull --rebase --autostash
+          git push
