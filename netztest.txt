@@ -1,0 +1,18 @@
+== Overpass: Orte (BBox) und feste Anlagen (Kreisflaeche) ==
+  overpass-api.de                  BBOX   36.8s  elemente=24
+  overpass-api.de                  AREA    0.4s  HTTPError: HTTP Error 502: Bad Gateway
+  overpass.kumi.systems            BBOX   61.2s  TimeoutError: The read operation timed out
+  overpass.kumi.systems            AREA   60.3s  TimeoutError: The read operation timed out
+  overpass.private.coffee          BBOX   60.3s  TimeoutError: The read operation timed out
+  overpass.private.coffee          AREA   60.3s  TimeoutError: The read operation timed out
+  overpass.osm.ch                  BBOX    0.9s  elemente=0
+  overpass.osm.ch                  AREA    0.5s  elemente=0
+  overpass.openstreetmap.ru        BBOX   62.4s  URLError: <urlopen error timed out>
+  overpass.openstreetmap.ru        AREA   60.3s  URLError: <urlopen error timed out>
+  overpass.osm.rambler.ru          BBOX    0.2s  URLError: <urlopen error [Errno -2] Name or service not known>
+  overpass.osm.rambler.ru          AREA    0.9s  URLError: <urlopen error [Errno -2] Name or service not known>
+
+== Landkreis Osnabrueck: was steht auf der Seite? ==
+  Laenge: 336602
+  Fundstelle 'Geschwindigkeitsmessplan': 1899
+  Textauszug: Geschwindigkeitsmessplan" /> { "@context": "https:\/\/schema.org", "@type": "BreadcrumbList", "itemListElement": [ { "@type": "ListItem", "position": 1, "name": "Landkreis Osnabrück", "item": "https:\/\/www.landkreis-osnabrueck.de\/" }, { "@type": "ListItem", "item": "https:\/\/www.landkreis-osnabrueck.de\/fachthemen\/ordnung-und-verkehr", "position": 2, "name": "Ordnung und Verkehr" }, { "@type": "ListItem", "position": 3, "name": "Baustellen und Blitzplan", "item": "https:\/\/www.landkreis-osnabrueck.de\/fachthemen\/ordnung-und-verkehr\/baustellen-und-blitzplan" } ] } Verkehrs- und Baustellenmeldungen, Geschwindigkeitsmessplan | Landkreis Osnabrück <link rel="stylesheet" media="all" href="
