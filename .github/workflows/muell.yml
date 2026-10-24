@@ -1,0 +1,34 @@
+name: Müllkalender aktualisieren
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"   # montags früh, die Gemeinde ändert den Plan selten
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: muell
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Termine abrufen
+        run: python3 .github/scripts/fetch_muell.py muell.json
+      - name: Speichern, falls sich etwas geändert hat
+        run: |
+          git config user.name "arbeitstag-bot"
+          git config user.email "arbeitstag-bot@users.noreply.github.com"
+          git add muell.json
+          if git diff --cached --quiet -- muell.json; then
+            echo "Keine Änderungen."
+            exit 0
+          fi
+          git commit -m "Müllkalender aktualisiert"
+          git pull --rebase --autostash
+          git push

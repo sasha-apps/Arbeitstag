@@ -4,11 +4,15 @@
 Liest push.json aus dem privaten Daten-Repo (Token in DATA_TOKEN). Die Texte der
 Erinnerungen sind auf dem Gerät mit dem Passwort-Schlüssel verschlüsselt; dieses
 Skript sieht nur Zeitpunkte und den verschlossenen Inhalt. Für die Morgen- und
-Feierabend-Meldung hängt es Verkehrsmeldungen der Autobahn GmbH an.
+Feierabend-Meldung hängt es Verkehrsmeldungen der Autobahn GmbH an, morgens dazu das
+Wetter (Open-Meteo). Am Vorabend eines Arbeitstags warnt es bei Glätte, Sturm oder Nebel
+(Open-Meteo und DWD-Warnungen über Bright Sky).
 Gibt bewusst nichts Persönliches im Log aus (das Repo ist öffentlich).
 """
 import base64, hashlib, hmac, json, os, re, sys, time, urllib.error, urllib.request
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -21,6 +25,9 @@ REPO = os.environ.get("DATA_REPO", "sasha-apps/arbeitstag-daten")
 TOKEN = os.environ.get("DATA_TOKEN", "").strip()
 WINDOW = 2 * 3600          # später als 2 Std. wird nichts mehr verschickt
 KEEP_IDS = 3 * 86400       # gesendete IDs so lange merken
+BERLIN = ZoneInfo("Europe/Berlin")
+HOME = (52.2003, 8.4554)   # Bruchmühlen; mit Arbeitsweg der Startpunkt der Strecke
+WARN_HOURS = (19, 22)      # Warnung am Vorabend zwischen 19 und 22 Uhr
 UA = "ArbeitsTag-Push/1.0 (+https://sasha-apps.github.io/Arbeitstag/)"
 
 
@@ -159,7 +166,7 @@ def describe(it, kind):
         where = f"zwischen {sec[0]} und {sec[1]}"
     else:
         t = re.sub(r"^\s*A\d+\s*[-|]\s*", "", it.get("title") or "")
-        t = re.sub(r"\s*-\s*AkD\s*\d+\s*$", "", t).replace(" - ", ": ", 1)
+        t = re.sub(r"\s*[-:]?\s*A[ikl]D\s*\d+\s*$", "", t, flags=re.I).replace(" - ", ": ", 1)
         where = (": " + (t[:90].rsplit(" ", 1)[0] + "…" if len(t) > 90 else t)) if t else ""
     if kind == "closure" or str(it.get("isBlocked")).lower() == "true":
         word = "Sperrung"
@@ -212,13 +219,117 @@ def traffic(cfg, direction, now):
             line = describe(it, kind)
             if line and line not in hits[kind]:
                 hits[kind].append(line)
-    parts = hits["closure"] + hits["warning"] + hits["roadworks"][:2]
+    key = lambda s: s.split(" ", 1)[-1]
+    seen = {key(x) for x in hits["closure"] + hits["warning"]}
+    parts = hits["closure"] + hits["warning"] + [x for x in hits["roadworks"] if key(x) not in seen][:2]
     head = f"{road} → {NAMES.get(direction, direction)}: "
     if not parts:
         return head + "frei, keine Meldungen."
     if not hits["warning"] and not hits["closure"]:
         parts.append("kein Stau")
     return head + "; ".join(parts)
+
+
+# ---------- Wetter ----------
+WMO = {0: "klar", 1: "überwiegend klar", 2: "teils bewölkt", 3: "bedeckt", 45: "Nebel", 48: "Nebel mit Reif",
+       51: "leichter Niesel", 53: "Nieselregen", 55: "starker Niesel", 56: "gefrierender Niesel", 57: "gefrierender Niesel",
+       61: "leichter Regen", 63: "Regen", 65: "starker Regen", 66: "gefrierender Regen", 67: "gefrierender Regen",
+       71: "leichter Schnee", 73: "Schneefall", 75: "starker Schneefall", 77: "Schneegriesel", 80: "Schauer",
+       81: "Regenschauer", 82: "heftige Schauer", 85: "Schneeschauer", 86: "Schneeschauer", 95: "Gewitter",
+       96: "Gewitter mit Hagel", 99: "Gewitter mit Hagel"}
+FREEZE = {56, 57, 66, 67, 71, 73, 75, 77, 85, 86}
+
+
+def wx_point(cfg):
+    line = (cfg.get("rt") or {}).get("line") or []
+    return (line[0][0], line[0][1]) if line else HOME
+
+
+def forecast(lat, lon):
+    return fetch_json(f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+                      "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_gusts_10m"
+                      "&timezone=Europe%2FBerlin&forecast_days=2")
+
+
+def hours(fc, day, hs):
+    h, out = fc["hourly"], []
+    for hh in hs:
+        k = f"{day}T{hh:02d}:00"
+        if k in h["time"]:
+            i = h["time"].index(k)
+            out.append({"t": h["temperature_2m"][i], "p": h["precipitation_probability"][i] or 0, "mm": h["precipitation"][i] or 0,
+                        "c": h["weather_code"][i], "g": h["wind_gusts_10m"][i] or 0})
+    return out
+
+
+def risks(hs):
+    """Was die Fahrt am frühen Morgen schwer macht (4 bis 8 Uhr)."""
+    if not hs:
+        return []
+    r, low = [], min(x["t"] for x in hs)
+    wet = any(x["mm"] > 0 or x["p"] >= 50 for x in hs)
+    if any(x["c"] in FREEZE for x in hs) or (low <= 1 and wet):
+        r.append(f"Glättegefahr ({round(low)} °C)")
+    elif low <= 0:
+        r.append(f"Frost ({round(low)} °C), Scheiben freikratzen")
+    g = max(x["g"] for x in hs)
+    if g >= 60:
+        r.append(f"Sturmböen bis {round(g)} km/h")
+    if any(x["c"] in (45, 48) for x in hs):
+        r.append("Nebel")
+    if any(x["c"] >= 95 for x in hs):
+        r.append("Gewitter")
+    return r
+
+
+def dwd_alerts(lat, lon, start, end):
+    """DWD-Warnungen (über Bright Sky), die das Zeitfenster berühren."""
+    out = []
+    for a in fetch_json(f"https://api.brightsky.dev/alerts?lat={lat}&lon={lon}").get("alerts") or []:
+        try:
+            on = datetime.fromisoformat(a["onset"]).timestamp()
+            ex = datetime.fromisoformat(a["expires"]).timestamp() if a.get("expires") else end
+        except Exception:
+            continue
+        if on < end and ex > start and (a.get("severity") or "") in ("moderate", "severe", "extreme"):
+            t = a.get("event_de") or a.get("headline_de")
+            if t and t not in out:
+                out.append(t.capitalize() if t.isupper() else t)
+    return out
+
+
+def weather_line(cfg, now):
+    lat, lon = wx_point(cfg)
+    day = datetime.fromtimestamp(now, BERLIN).date().isoformat()
+    fc = forecast(lat, lon)
+    hs = hours(fc, day, [6, 7])
+    if not hs:
+        return None
+    s = f"🌤 {round(hs[0]['t'])} °C, {WMO.get(hs[0]['c'], '')}"
+    pm = hours(fc, day, [15])
+    if pm:
+        s += f" · 15 Uhr {round(pm[0]['t'])} °C" + (f", Regen {pm[0]['p']} %" if pm[0]["p"] >= 30 else "")
+    r = risks(hours(fc, day, [5, 6, 7, 8]))
+    return s + (" · ⚠ " + ", ".join(r) if r else "")
+
+
+def evening_warning(cfg, now):
+    """Zwischen 19 und 22 Uhr vor einem Arbeitstag: Warnung, wenn es morgen früh glatt, stürmisch oder neblig wird."""
+    loc = datetime.fromtimestamp(now, BERLIN)
+    tom = (loc + timedelta(days=1)).date()
+    if not (WARN_HOURS[0] <= loc.hour < WARN_HOURS[1]) or tom.weekday() >= 5:
+        return None
+    lat, lon = wx_point(cfg)
+    r = risks(hours(forecast(lat, lon), tom.isoformat(), [4, 5, 6, 7, 8]))
+    t0 = datetime(tom.year, tom.month, tom.day, 4, tzinfo=BERLIN).timestamp()
+    try:
+        r += [a for a in dwd_alerts(lat, lon, t0, t0 + 5 * 3600) if a not in r]
+    except Exception:
+        pass
+    if not r:
+        return None
+    return {"id": f"wx-{tom.isoformat()}", "k": "wx", "t": "Morgen früh: " + r[0].split(" (")[0],
+            "wx": "⚠ " + "; ".join(r) + ". Lieber etwas früher losfahren."}
 
 
 def main():
@@ -239,6 +350,14 @@ def main():
     ids = {k: v for k, v in (sent.get("ids") or {}).items() if now - v < KEEP_IDS}
     due = sorted([it for it in cfg.get("items") or [] if it.get("id") and it.get("at", 0) <= now
                   and now - it["at"] <= WINDOW and it["id"] not in ids], key=lambda x: x["at"])
+    wx_on = (cfg.get("opt") or {}).get("wx") is not False
+    if wx_on:
+        try:
+            w = evening_warning(cfg, now)
+            if w and w["id"] not in ids:
+                due.append(w)
+        except Exception as e:
+            print("Wetter nicht abrufbar:", type(e).__name__)
     print(f"fällig: {len(due)}")
     if not due:
         return
@@ -248,6 +367,13 @@ def main():
     dead = False
     for it in due:
         data = {"id": it["id"], "k": it.get("k"), "b": it.get("b")}
+        if it.get("k") == "wx":
+            data = {"id": it["id"], "k": "wx", "t": it["t"], "wx": it["wx"]}
+        if it.get("k") == "am" and wx_on:
+            try:
+                data["wx"] = weather_line(cfg, now)
+            except Exception as e:
+                tr_err = tr_err or type(e).__name__
         if it.get("k") in ("am", "pm"):
             d = am if it["k"] == "am" else ("E" if am == "W" else "W")
             if d not in tr_cache:

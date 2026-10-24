@@ -1,6 +1,6 @@
 # ArbeitsTag
 
-Ruhige To-do-App mit wiederkehrenden Aufgaben, Tagesring, Nachrichten und Blitzern in der Umgebung.
+Ruhige To-do-App mit wiederkehrenden Aufgaben, Tagesring, Morgenbriefing, Nachrichten und Blitzern in der Umgebung.
 
 - App: https://sasha-apps.github.io/Arbeitstag/
 - Daten liegen auf dem Gerät (Browser-Speicher). Sicherung über ⋯ → „Sicherung speichern“.
@@ -9,3 +9,9 @@ Ruhige To-do-App mit wiederkehrenden Aufgaben, Tagesring, Nachrichten und Blitze
 - QR-Code: qrcode-generator (MIT), QR-Scanner: jsQR (Apache-2.0), siehe LICENSE-Dateien.
 - `news.json` wird stündlich von GitHub Actions aktualisiert (`.github/workflows/news.yml`). Gespeichert werden nur Schlagzeile, Anriss, Quelle, Zeit, Link und ggf. die Adresse des Vorschaubilds (das Bild selbst wird nicht kopiert).
 - `blitzer.json` wird zweimal täglich erzeugt (`.github/workflows/blitzer.yml`). Feste Anlagen im Kreis Herford und in Melle kommen aus OpenStreetMap (© OpenStreetMap-Mitwirkende, ODbL), angekündigte Messstellen vom [Kreis Herford](https://www.kreis-herford.de/Startseite/Blitzer/) (tagesgenau mit Straße) und aus dem [Geschwindigkeitsmessplan des Landkreises Osnabrück](https://www.landkreis-osnabrueck.de/fachthemen/ordnung-und-verkehr/baustellen-und-blitzplan) (nur Tag und Ort). Straßennamen werden über OpenStreetMap in Koordinaten umgerechnet, damit die App nach Entfernung sortieren kann; Mittelpunkt ist Bruchmühlen, auf Wunsch der eigene Standort. Hinweis in der App: Während der Fahrt darf eine Blitzer-Warnung nicht benutzt werden (§ 23 Abs. 1c StVO).
+- Morgenbriefing auf „Heute“: Wetter von [Open-Meteo](https://open-meteo.com) und DWD-Warnungen über [Bright Sky](https://brightsky.dev), Verkehr auf der A30 von der Autobahn GmbH des Bundes, Blitzer auf dem Arbeitsweg, Müllabfuhr, Spritpreise und Berichtsheft. Alles wird direkt vom Gerät abgerufen.
+- Arbeitsweg: Start und Ziel werden über [Photon](https://photon.komoot.io) gefunden und die Strecke einmal mit [OSRM](https://project-osrm.org) berechnet (Daten © OpenStreetMap-Mitwirkende). Die Strecke bleibt auf dem Gerät und, wenn Benachrichtigungen an sind, in `push.json` im privaten Repo, damit die Morgen-Meldung die Blitzer auf dem Weg nennen kann.
+- `muell.json` holt `.github/workflows/muell.yml` jeden Montag aus dem Abfuhrkalender der [Gemeinde Rödinghausen](https://www.roedinghausen.de/Service/Abfall/), für alle Straßen. Die eigene Straße wird nur auf dem Gerät gewählt. Am Vorabend steht die Tonne als Aufgabe mit 🔔 in der Liste.
+- Spritpreise von [Tankerkönig](https://creativecommons.tankerkoenig.de) (MTS-K, CC BY 4.0). Der eigene API-Schlüssel wird im Menü eingetragen und bleibt auf dem Gerät.
+- Wetter in der Benachrichtigung um 5:30 und eine Warnung am Vorabend eines Arbeitstags (19 bis 22 Uhr) bei Glätte, Sturm, Nebel oder DWD-Warnung kommen aus `send_push.py`.
+- Berichtsheft: Einträge je Tag liegen verschlüsselt als `berichtsheft.sync` im privaten Repo (gleicher Schlüssel wie der Abgleich). `tools/berichtsheft_import.py` holt sie auf dem Laptop in die Tagesnotizen im Vault (braucht `gh` und `pip install cryptography`).

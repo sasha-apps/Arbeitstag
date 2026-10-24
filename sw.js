@@ -1,12 +1,12 @@
-const V='arbeitstag-7';
+const V='arbeitstag-8';
 const CORE=['./','index.html','manifest.json','icon-180.png','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(CORE.map(u=>fetch(new Request(u,{cache:'reload'})).then(r=>{if(r.ok)return c.put(u,r)}).catch(()=>{})))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
   const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.origin!==location.origin)return;
-  const fresh=r.mode==='navigate'||/\/$|index\.html$|news\.json$|blitzer\.json$/.test(u.pathname);
-  if(fresh){ // App-Seite, Nachrichten und Blitzer: zuerst aus dem Netz, offline aus dem Speicher
-    const key=/news\.json$/.test(u.pathname)?'news.json':/blitzer\.json$/.test(u.pathname)?'blitzer.json':'./';
+  const fresh=r.mode==='navigate'||/\/$|index\.html$|(news|blitzer|muell)\.json$/.test(u.pathname);
+  if(fresh){ // App-Seite, Nachrichten, Blitzer und Müll: zuerst aus dem Netz, offline aus dem Speicher
+    const j=u.pathname.match(/(news|blitzer|muell)\.json$/),key=j?j[0]:'./';
     e.respondWith(fetch(r,{cache:'no-store'}).then(res=>{if(res.ok){const cp=res.clone();caches.open(V).then(c=>c.put(key,cp))}return res})
       .catch(()=>caches.match(key).then(h=>h||caches.match('index.html'))));return}
   e.respondWith(caches.open(V).then(async c=>{const hit=await c.match(r);
@@ -20,8 +20,8 @@ async function openBox(b){const k=await kvGet('key');if(!k||!b)return null;const
   const key=await crypto.subtle.importKey('raw',b64d(k),{name:'AES-GCM'},false,['decrypt']);
   return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(iv)},key,b64d(ct))))}
 async function onPush(d){let m=null;try{m=await openBox(d.b)}catch(e){}
-  const lines=m&&Array.isArray(m.l)?m.l.slice():[];if(d.tr)lines.push(d.tr);if(!m&&!d.tr)lines.push('Du hast eine Erinnerung. Öffne ArbeitsTag.');
-  return self.registration.showNotification(m&&m.t||'ArbeitsTag',{body:lines.join('\n'),tag:d.id||'arbeitstag',icon:'icon-192.png',badge:'icon-192.png',data:{url:'./'}})}
+  const lines=m&&Array.isArray(m.l)?m.l.slice():[];if(d.wx)lines.push(d.wx);if(d.tr)lines.push(d.tr);if(!m&&!d.tr&&!d.wx)lines.push('Du hast eine Erinnerung. Öffne ArbeitsTag.');
+  return self.registration.showNotification(m&&m.t||d.t||'ArbeitsTag',{body:lines.join('\n'),tag:d.id||'arbeitstag',icon:'icon-192.png',badge:'icon-192.png',data:{url:'./'}})}
 self.handlePush=onPush;
 self.addEventListener('push',e=>{let d={};try{d=e.data?e.data.json():{}}catch(x){}e.waitUntil(onPush(d))});
 self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>{for(const c of cs){if('focus' in c)return c.focus()}return self.clients.openWindow('./')}))});

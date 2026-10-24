@@ -200,6 +200,32 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
 .bl-loc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 .bl-note{color:var(--muted);font-size:12.5px;text-align:center;line-height:1.5}
 .bl-warn{background:var(--late-soft);color:var(--late);border-radius:12px;padding:10px 14px;font-size:13px;line-height:1.45}
+.bl-way{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:14px}
+/* Briefing */
+.brief{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.brief-h{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;background:transparent;border-radius:0;padding:12px 14px;min-height:52px;text-align:left}
+.brief-h .ti{font:600 18px var(--display);display:block}
+.brief-h .su{font-size:12.5px;color:var(--muted);font-weight:500;display:block;margin-top:1px}
+.brief-h .chev{color:var(--muted);font-size:14px;transition:transform .2s}
+.brief-h[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+.br{display:grid;grid-template-columns:26px minmax(0,1fr);gap:0 8px;padding:10px 14px;border-top:1px solid var(--line);align-items:start}
+.br>*:not(.ic){grid-column:2;margin-top:2px}
+.br>.k{margin-top:0}
+.br .ic{grid-column:1;grid-row:1/span 12;font-size:17px;line-height:1.35;text-align:center}
+.br .k{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.br .v{font-size:15px;overflow-wrap:break-word}
+.br .v.warn{color:var(--late);font-weight:600}
+.br .v.ok{color:var(--done);font-weight:600}
+.br .d{font-size:13px;color:var(--fg2);overflow-wrap:break-word}
+.br .lk{background:transparent;color:var(--accent);padding:0;min-height:34px;font-weight:600;font-size:14px;justify-self:start}
+.tm .bin{color:var(--fg2)}
+.bh-row{display:grid;grid-template-columns:42px minmax(0,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;background:transparent;border-radius:0;text-align:left;font-weight:400;width:100%;min-height:44px}
+.bh-row:last-child{border-bottom:0}
+.bh-row b{font-weight:600;color:var(--fg2)}
+.bh-row span{color:var(--fg);white-space:pre-line;overflow-wrap:break-word}
+.bh-row span.no{color:var(--muted)}
+.bh-row[aria-current="true"]{background:var(--accent-soft)}
+#bhText{font:16px/1.45 var(--body);min-height:150px}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -218,6 +244,7 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
 
   <section id="v-heute" class="view">
     <div class="banner" id="demoBar" hidden><span>Das sind Beispiel-Aufgaben.</span><button class="small" id="clearDemo">Beispiele entfernen</button></div>
+    <section class="brief" id="brief"><button class="brief-h" id="briefTgl" aria-expanded="true"><span><span class="ti" id="briefTi">Morgenbriefing</span><span class="su" id="briefSu"></span></span><span class="chev" aria-hidden="true">▾</span></button><div id="briefBody"></div></section>
     <div class="calm" id="calm" hidden><b>Alles erledigt für heute.</b><span id="calmTxt">Gönn dir eine Pause.</span></div>
     <div class="sec"><div class="sec-h"><span>Heute</span><span class="cnt" id="cntToday"></span></div><div class="list" id="listToday"></div></div>
     <div class="sec" id="secDone"><button class="sec-h" id="tglDone" aria-expanded="true"><span>Geschafft heute</span><span class="cnt" id="cntDone"></span></button><div class="list" id="listDone"></div></div>
@@ -279,11 +306,27 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
   <div id="syncBox" class="syncbox"></div>
   <h2 style="margin-top:6px">Benachrichtigungen</h2>
   <div id="pushBox" class="syncbox"></div>
+  <h2 style="margin-top:6px">Arbeitsweg</h2>
+  <div id="routeBox" class="syncbox"></div>
+  <h2 style="margin-top:6px">Müllabfuhr</h2>
+  <div id="muellBox" class="syncbox"></div>
+  <h2 style="margin-top:6px">Spritpreise</h2>
+  <div id="spritBox" class="syncbox"></div>
   <h2 style="margin-top:6px">Nachrichten</h2>
   <label class="switch"><span>Vorschaubilder laden<br><span class="sub">Bilder kommen direkt von den Servern der Zeitungen. Die sehen dabei deine IP-Adresse. Bilder verbrauchen etwas mehr mobile Daten.</span></span><input type="checkbox" id="imgToggle" checked></label>
   <p class="sub" style="margin:0" id="archInfo"></p>
   <h2 style="margin-top:6px">So schreibst du Aufgaben</h2>
   <p class="sub" style="margin:0;line-height:1.6">„täglich“, „werktags“, „jeden Montag“, „montags und donnerstags“, „Mo/Mi/Fr“, „alle 3 Tage“, „alle 2 Wochen“, „monatlich am 15.“ machen eine Aufgabe wiederkehrend.<br>„heute“, „morgen“, „übermorgen“, „Freitag“, „am 24.12.“, „in 5 Tagen“, „nächste Woche“ geben einmaligen Aufgaben ein Datum.<br>Serien zählen, wie oft du eine wiederkehrende Aufgabe pünktlich schaffst. Einen Tag zu spät ist verziehen.</p>
+</div></div>
+<div class="sheet" id="bhSheet" hidden><div class="sheet-in" role="dialog" aria-modal="true" aria-label="Berichtsheft">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2>Berichtsheft</h2><button class="ghost small" id="bhClose">Schließen</button></div>
+  <label class="fld"><span class="sub">Tag</span><input type="date" id="bhDate"></label>
+  <label class="fld"><span class="sub">Was hast du gemacht? Stichpunkte reichen, eine Zeile pro Tätigkeit, gern mit Stunden.</span><textarea id="bhText" placeholder="Aufträge in die Produktion eingeplant (3 Std.)&#10;Mischung geprüft&#10;Planungsstatus und Shopfloorrunde"></textarea></label>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="bhSave">Speichern</button><button id="bhCopy">Woche kopieren</button></div>
+  <div class="msg" id="bhMsg" role="status"></div>
+  <div class="label" id="bhWeekL">Diese Woche</div>
+  <div class="list" id="bhWeek"></div>
+  <p class="sub" style="margin:0;line-height:1.5">Mit Abgleich landen die Einträge verschlüsselt in deinem privaten Repo. Auf dem Laptop holt <code>tools/berichtsheft_import.py</code> sie in die Tagesnotizen im Vault. Ohne Abgleich: „Woche kopieren“ und an Claude geben.</p>
 </div></div>
 <div class="toast" id="toast" hidden role="status"><span id="toastTxt"></span><button id="toastBtn" hidden>Rückgängig</button></div>
 
@@ -294,6 +337,9 @@ const mk=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const IN_ARTIFACT=(()=>{try{return window.top!==window}catch(e){return true}})();
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* Einstellungen nur für dieses Gerät: Arbeitsweg, Straße für die Müllabfuhr, Tankerkönig-Schlüssel */
+const PKEY=KEY+'-prefs';let PREF={};try{PREF=JSON.parse(localStorage.getItem(PKEY)||'{}')||{}}catch(e){}
+function prefSave(){try{localStorage.setItem(PKEY,JSON.stringify(PREF))}catch(e){}}
 
 /* ---------- Datum ---------- */
 const iso=d=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)};
@@ -428,6 +474,7 @@ function taskRow(x,mode){const t=todayISO();const row=mk('div','task'+(mode==='d
   if(mode!=='done'){
     if(x.due&&x.due<t)m.append(mk('span','late',x.rule?`fällig seit ${dayLabel(x.due)}`:`überfällig seit ${dayLabel(x.due)}`));
     else if(x.due&&x.due>t)m.append(mk('span',null,dayLabel(x.due)));
+    if(x.muell)m.append(mk('span','bin','🗑 Abholung '+dayLabel(x.muell)));
     if(x.rule)m.append(mk('span',null,'↻ '+ruleLabel(x.rule)));
     if(x.bell)m.append(mk('span',null,'🔔'+(x.time?' '+x.time:'')));
     const st=streakNow(x,t);if(st>=2)m.append(mk('span','strk',`${st}× in Folge`));}
@@ -443,7 +490,7 @@ function editor(x){const box=mk('div','edit');
   ri.oninput=upd;const dw=mk('div');dw.append(di);
   const bw=mk('label','bell');const bc=mk('input');bc.type='checkbox';bc.checked=!!x.bell;const bt=mk('input');bt.type='time';bt.value=x.time||'';bt.setAttribute('aria-label','Uhrzeit der Erinnerung');
   bw.append(bc,mk('span',null,'🔔 Erinnern'),bt);const bh=mk('div','hint');
-  const bupd=()=>{bt.disabled=!bc.checked;bh.textContent=bc.checked?(bt.value?`Erinnerung um ca. ${bt.value} Uhr`:'Ohne Uhrzeit: steht in der Übersicht um 6 und 15 Uhr (Mo–Fr)'):''};bc.onchange=bupd;bt.oninput=bupd;
+  const bupd=()=>{bt.disabled=!bc.checked;bh.textContent=bc.checked?(bt.value?`Erinnerung um ca. ${bt.value} Uhr`:'Ohne Uhrzeit: steht in der Übersicht um 5:30 und 15 Uhr (Mo–Fr)'):''};bc.onchange=bupd;bt.oninput=bupd;
   const row=mk('div','row');const sv=mk('button','primary small','Speichern');const tm=mk('button','small','Auf morgen');const dl=mk('button','ghost small danger','Löschen');
   sv.onclick=()=>{const tt=ti.value.trim();if(!tt){ti.focus();return}x.title=tt;const p=ri.value.trim()?parse('x '+ri.value).rule:null;
     if(ri.value.trim()&&!p){hint.textContent='Wiederholung nicht verstanden. Bitte anders formulieren oder leer lassen.';return}
@@ -524,7 +571,7 @@ function restore(txt){const m=$('bkMsg');try{const d=JSON.parse(txt);if(d.app!==
   catch(e){m.className='msg err';m.textContent='Das ist keine gültige ArbeitsTag-Sicherung.'}}
 let restoreArm=false;
 function armRestore(btn,fn){if(!S.demo&&S.tasks.length&&!restoreArm){restoreArm=true;const o=btn.textContent;btn.textContent='Ersetzt alle aktuellen Aufgaben. Nochmal tippen';setTimeout(()=>{restoreArm=false;btn.textContent=o},3500);return}restoreArm=false;fn()}
-$('menuBtn').onclick=()=>{bkInfo();$('archInfo').textContent=`Auf diesem Gerät gespeichert: ${ARCH.size} Meldungen der letzten 4 Wochen, ${FAVS.size} Favoriten.`;$('sheet').hidden=false;renderSync();PU.loaded=false;PU.msg='';renderPush()};
+$('menuBtn').onclick=()=>{bkInfo();$('archInfo').textContent=`Auf diesem Gerät gespeichert: ${ARCH.size} Meldungen der letzten 4 Wochen, ${FAVS.size} Favoriten.`;$('sheet').hidden=false;renderSync();PU.loaded=false;PU.msg='';renderPush();renderRoute();renderMuell();renderSprit()};
 function closeSheet(){$('sheet').hidden=true;stopScan();SY.ui='';SY.form={};SY.msg=''}
 $('sheetClose').onclick=closeSheet;$('sheet').onclick=e=>{if(e.target===$('sheet'))closeSheet()};
 $('bkSave').onclick=saveBackup;$('bkOpen').onclick=e=>armRestore(e.currentTarget,()=>$('bkFile').click());
@@ -542,6 +589,7 @@ function showTab(v){cur=v;document.querySelectorAll('nav button').forEach(b=>b.s
   document.body.classList.toggle('welt',v==='welt');document.body.classList.toggle('region',v==='region');
   document.body.classList.toggle('blitzer',v==='blitzer');
   try{localStorage.setItem(KEY+'-tab',v)}catch(e){}
+  if(v==='heute'&&window.refreshBrief)refreshBrief();
   if(v==='blitzer'&&window.renderBlitzer)renderBlitzer();
   else if(v!=='heute'&&window.renderWelt)renderWelt();
   window.scrollTo(0,0)}
@@ -634,7 +682,7 @@ const BKEY=KEY+'-blitzer',FALLBACK_CENTER={name:'Bruchmühlen',lat:52.2075,lon:8
 let BLZ=null,BPOS=null,BF='nah',BN=60,BDAY=null;
 try{BLZ=JSON.parse(localStorage.getItem(BKEY)||'null')}catch(e){}
 try{BF=(JSON.parse(localStorage.getItem(KEY+'-view')||'{}')).blitzer||'nah'}catch(e){}
-const BCHIPS=[['nah','In der Nähe'],['plan','Angekündigt'],['fest','Feste Anlagen']];
+const BCHIPS=[['weg','Arbeitsweg'],['nah','In der Nähe'],['plan','Angekündigt'],['fest','Feste Anlagen']];
 
 function distKm(aLat,aLon,bLat,bLon){const R=6371,r=x=>x*Math.PI/180;
   const dp=r(bLat-aLat),dl=r(bLon-aLon);
@@ -642,7 +690,7 @@ function distKm(aLat,aLon,bLat,bLon){const R=6371,r=x=>x*Math.PI/180;
   return 2*R*Math.asin(Math.min(1,Math.sqrt(s)))}
 const bOrigin=()=>BPOS||(BLZ&&BLZ.center)||FALLBACK_CENTER;
 const kmTxt=k=>k==null?'–':(k<10?k.toFixed(1).replace('.',','):Math.round(k))+' km';
-function dayLabel(d){const t=todayISO();if(d===t)return 'heute';if(d===addDays(t,1))return 'morgen';
+function bDay(d){const t=todayISO();if(d===t)return 'heute';if(d===addDays(t,1))return 'morgen';
   return D(d).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'numeric'})}
 
 async function loadBlitzer(){
@@ -663,6 +711,9 @@ function blitzerPool(){
     name:m.road||m.place,place:m.place,date:m.date,src:m.src,exact:m.approx===false,
     km:m.lat!=null?distKm(o.lat,o.lon,m.lat,m.lon):null}));
   let pool;
+  if(BF==='weg'){BDAY=null;const w=PREF.route&&wayBlitzer(null,PREF.route.line);
+    return w?w.mob.map(m=>({kind:'mob',name:m.road||m.place,place:m.place,date:m.date,src:m.src,exact:m.approx===false,km:m.along,way:1}))
+      .concat(w.fix.map(c=>({kind:'fix',name:c.road||'Feste Anlage',place:c.place,maxspeed:c.maxspeed,red:c.kind==='red_light',km:c.along,exact:true,way:1}))):[]}
   if(BF==='fest'){pool=fix.slice();BDAY=null}
   else if(BF==='plan'){pool=mob.slice();BDAY=null}
   else{ // heute, und wenn für heute nichts angekündigt ist, der nächste Tag mit Einträgen
@@ -677,11 +728,12 @@ function blRow(x){const row=mk('div','bi');
   const m=mk('div','m');
   if(x.kind==='fix'){m.append(mk('span','tag fix',x.red?'Rotlicht':'Fest'));
     if(x.maxspeed)m.append(mk('span',null,'Tempo '+x.maxspeed))}
-  else{const now=x.date===todayISO();m.append(mk('span','tag'+(now?' now':''),dayLabel(x.date)))}
+  else{const now=x.date===todayISO();m.append(mk('span','tag'+(now?' now':''),bDay(x.date)))}
   m.append(mk('span',null,x.place));
   if(x.kind==='mob')m.append(mk('span',null,x.src));
-  const k=mk('div','km',kmTxt(x.km));
-  if(x.km!=null&&!x.exact)k.append(mk('small',null,'ungefähr'));
+  const k=mk('div','km',(x.way?'bei ':'')+kmTxt(x.km));
+  if(x.way)k.append(mk('small',null,x.exact?'ab Start':'Ort an der Strecke'));
+  else if(x.km!=null&&!x.exact)k.append(mk('small',null,'ungefähr'));
   row.append(mk('div','n',x.name),m,k);return row}
 
 function renderBlitzer(){
@@ -696,22 +748,28 @@ function renderBlitzer(){
     +', '+new Date(BLZ.updated*1000).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
   $('bLocInfo').textContent=BPOS?'Entfernung ab deinem Standort':'Entfernung ab '+bOrigin().name;
   $('bLoc').textContent=BPOS?'Standort aktualisieren':'Meinen Standort verwenden';
+  $('bLoc').parentElement.hidden=BF==='weg';
 
   const list=$('bList');list.replaceChildren();
+  if(BF==='weg'&&!PREF.route){$('bInfo').textContent='';const w=mk('div','bl-way');w.append(mk('p','sub','Leg einmal fest, wo du losfährst und wo du arbeitest. Dann siehst du hier nur die Blitzer auf deiner Strecke, und das Morgenbriefing nennt sie dir.'),routeForm(renderBlitzer));
+    list.append(w);$('bNote').textContent='';return}
   const pool=blitzerPool();
   const nMob=BDAY?(BLZ.mobile||[]).filter(m=>m.date===BDAY).length:0;
-  $('bInfo').textContent=!BLZ?'':BF==='fest'?`${pool.length} feste Anlagen`
+  $('bInfo').textContent=!BLZ?'':BF==='weg'?`${pool.filter(x=>x.kind==='mob').length} angekündigt, ${pool.filter(x=>x.kind==='fix').length} feste Anlagen auf ${PREF.route.from} → ${PREF.route.to}`
+    :BF==='fest'?`${pool.length} feste Anlagen`
     :BF==='plan'?`${pool.length} angekündigte Messstellen`
-    :(nMob?`${nMob} für ${dayLabel(BDAY)} angekündigt, dazu `:'')+`${(BLZ.fixed||[]).length} feste Anlagen`;
+    :(nMob?`${nMob} für ${bDay(BDAY)} angekündigt, dazu `:'')+`${(BLZ.fixed||[]).length} feste Anlagen`;
   if(!pool.length){list.append(mk('div','empty',IN_ARTIFACT?'Blitzer erscheinen, sobald die App über GitHub läuft. In dieser Vorschau gibt es keine Daten.'
     :!BLZ?'Standorte werden geladen … Ohne Internet siehst du hier den letzten Stand.'
+    :BF==='weg'?'Auf deiner Strecke ist gerade nichts angekündigt, und es sind keine festen Anlagen bekannt.'
     :BF==='plan'?'Gerade sind keine Messstellen angekündigt.'
     :BF==='nah'?'Für heute ist nichts angekündigt, und es sind keine festen Anlagen bekannt.':'Keine festen Anlagen bekannt.'))}
   pool.slice(0,BN).forEach(x=>list.append(blRow(x)));
   if(pool.length>BN){const more=mk('button','more',`Weitere ${Math.min(60,pool.length-BN)} anzeigen`);
     more.onclick=()=>{BN+=60;renderBlitzer()};list.append(more)}
   $('bNote').textContent='Feste Anlagen aus OpenStreetMap. Angekündigte Messstellen vom Kreis Herford (tagesgenau mit Straße) '
-    +'und vom Landkreis Osnabrück (nur Tag und Ort). Gemessen werden kann auch anderswo.'}
+    +'und vom Landkreis Osnabrück (nur Tag und Ort). Gemessen werden kann auch anderswo.'
+    +(BF==='weg'?' Strecke berechnet mit OSRM, ändern unter ⋯ → Arbeitsweg.':'')}
 window.renderBlitzer=renderBlitzer;
 
 $('bLoc').onclick=()=>{
@@ -766,12 +824,12 @@ async function gh(cfg,path,opt){opt=opt||{};let r;
     headers:Object.assign({Accept:opt.raw?'application/vnd.github.raw':'application/vnd.github+json',Authorization:'Bearer '+cfg.token},opt.body?{'Content-Type':'application/json'}:{})})}
   catch(e){throw syncErr('net')}return r}
 const httpErr=s=>s===401?'auth':s===403?'perm':s===404?'repo':'http';
-async function remoteGet(cfg){const p=`/repos/${cfg.repo}/contents/${SYNC_FILE}`;const r=await gh(cfg,p);
+async function remoteGet(cfg,file){const p=`/repos/${cfg.repo}/contents/${file||SYNC_FILE}`;const r=await gh(cfg,p);
   if(r.status===404)return null;if(!r.ok)throw syncErr(httpErr(r.status));const j=await r.json();let txt;
   if(j.encoding==='base64'&&j.content)txt=new TextDecoder().decode(b64d(j.content));
   else{const r2=await gh(cfg,p,{raw:1});if(!r2.ok)throw syncErr(httpErr(r2.status));txt=await r2.text()}
   let env;try{env=JSON.parse(txt)}catch(e){throw syncErr('http')}if(!env||env.app!=='arbeitstag-sync')throw syncErr('http');return {sha:j.sha,env}}
-async function remotePut(cfg,txt,sha){const r=await gh(cfg,`/repos/${cfg.repo}/contents/${SYNC_FILE}`,{method:'PUT',body:JSON.stringify(Object.assign({message:'sync',content:btoa(txt)},sha?{sha}:{}))});
+async function remotePut(cfg,txt,sha,file){const r=await gh(cfg,`/repos/${cfg.repo}/contents/${file||SYNC_FILE}`,{method:'PUT',body:JSON.stringify(Object.assign({message:'sync',content:btoa(txt)},sha?{sha}:{}))});
   if(r.status===409||r.status===422)return false;if(!r.ok)throw syncErr(httpErr(r.status));return true}
 async function checkRepo(cfg){const r=await gh(cfg,`/repos/${cfg.repo}`);if(!r.ok)throw syncErr(httpErr(r.status));const j=await r.json();if(!j.private)throw syncErr('public')}
 
@@ -914,7 +972,7 @@ addEventListener('online',()=>{if(CFG)syncNow()});
 setInterval(()=>{if(CFG&&!document.hidden)syncNow()},30000);
 
 /* ---------- Benachrichtigungen: Web Push, verschickt von GitHub Actions, Inhalte mit dem Abgleich-Schlüssel verschlossen ---------- */
-const AM_T='06:00',PM_T='15:00',P_DAYS=28;
+const AM_T='05:30',PM_T='15:00',P_DAYS=28;
 let DEV='';try{DEV=localStorage.getItem(KEY+'-dev')||''}catch(e){}if(!DEV){DEV=uid();try{localStorage.setItem(KEY+'-dev',DEV)}catch(e){}}
 const PU={pj:null,sha:null,sent:null,loaded:false,loading:false,msg:'',msgErr:false};
 const PUSH_OK=typeof navigator!=='undefined'&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
@@ -938,14 +996,15 @@ function openDays(x,t,end){const out=[];if(x.done)return out;
   while(d<=end&&g++<400){out.push(d);d=nextAfter({...x,due:d},d)}return out}
 const cutT=(s,n)=>s.length>n?s.slice(0,n-1)+'…':s;
 function bellLine(arr){const n=arr.slice(0,6).map(x=>cutT(x.title,40));if(arr.length>6)n.push(`+${arr.length-6} weitere`);return '🔔 '+n.join(', ')}
-function buildSchedule(opt){const items=[];if(S.demo)return items;const t=todayISO(),end=addDays(t,P_DAYS-1),now=Date.now()/1000,per={},timed=[];
+function buildSchedule(opt,rt){const items=[];if(S.demo)return items;const t=todayISO(),end=addDays(t,P_DAYS-1),now=Date.now()/1000,per={},timed=[];
   for(const x of S.tasks){const days=openDays(x,t,end);days.forEach(d=>(per[d]=per[d]||[]).push(x));
     if(x.bell&&x.time){if(x.rule)days.forEach(d=>timed.push([d,x]));else if(days.length)timed.push([days[0],x])}}
   if(!opt||opt.digest!==false)for(let d=t;d<=end;d=addDays(d,1)){const wd=D(d).getDay();if(wd===0||wd===6)continue;
     const list=per[d]||[],n=list.length,bells=list.filter(x=>x.bell&&!x.time);
     for(const k of ['am','pm']){const at=atOf(d,k==='am'?AM_T:PM_T);if(at<=now)continue;
       const ti=k==='am'?(n?`Guten Morgen · ${n} ${n===1?'Aufgabe':'Aufgaben'} heute`:'Guten Morgen · heute nichts geplant'):(n?`Feierabend · noch ${n} offen`:'Feierabend · alles erledigt');
-      items.push({id:`${k}-${d}`,k,at,c:{t:ti,l:bells.length?[bellLine(bells)]:[]}})}}
+      const l=bells.length?[bellLine(bells)]:[];if(k==='am'&&rt){const w=wayBlitzer(d,rt.line);if(w&&w.mob.length)l.push('📷 Auf dem Weg: '+w.mob.slice(0,3).map(wbName).join(', '))}
+      items.push({id:`${k}-${d}`,k,at,c:{t:ti,l}})}}
   for(const [d,x] of timed){const at=atOf(d,x.time);if(at<=now)continue;
     items.push({id:`t-${x.id}-${d}-${x.time}`,k:'t',at,c:{t:'🔔 '+cutT(x.title,60),l:[x.rule?'↻ '+ruleLabel(x.rule):'Erinnerung aus ArbeitsTag']}})}
   return items.sort((a,b)=>a.at-b.at||(a.id<b.id?-1:1))}
@@ -957,7 +1016,8 @@ async function sealItems(items){const key=await keyFrom(CFG.key),out=[];for(cons
 async function pushUpdate(force){if(!CFG||!CFG.key||S.demo||IN_ARTIFACT)return;
   for(let i=0;i<2;i++){const r=await ghGetJson('push.json');if(!r||!r.json)return;const pj=r.json;PU.pj=pj;PU.sha=r.sha;
     if(!pj.on||!pj.sub)return;if(pj.dev===DEV)kvSet('key',CFG.key);
-    const items=buildSchedule(pj.opt),h=await schedHash(items);if(!force&&h===pj.h)return;
+    if(pj.rt&&!PREF.route){PREF.route=pj.rt;prefSave()}
+    const items=buildSchedule(pj.opt,pj.rt),h=await schedHash(items);if(!force&&h===pj.h)return;
     const now=Date.now()/1000,tests=(pj.items||[]).filter(x=>x.k==='x'&&now-x.at<7200);
     pj.items=[...(await sealItems(items)),...tests];pj.h=h;pj.upd=Date.now();
     if(await ghPutJson('push.json',pj,r.sha)){PU.sha=null;return}}}
@@ -997,31 +1057,263 @@ function renderPush(){const box=$('pushBox');if(!box)return;box.replaceChildren(
     else st=(pj.upd&&Date.now()-pj.upd>40*60000)?'Aktiv, aber der Versand-Dienst hat sich noch nicht gemeldet. Ist bei GitHub das Secret DATA_TOKEN eingetragen?':'Aktiv auf diesem Gerät · der Versand-Dienst schaut alle 15 Minuten nach.';
     box.append(mk('p','sub'+(sent&&sent.dead?' bad':''),st));
     const dg=mk('label','switch');const dc=mk('input');dc.type='checkbox';dc.checked=!(pj.opt&&pj.opt.digest===false);
-    dg.append(mk('span',null,'Übersicht um 6 und 15 Uhr (Mo–Fr)'),dc);
+    dg.append(mk('span',null,'Übersicht um 5:30 und 15 Uhr (Mo–Fr)'),dc);
+    const wg=mk('label','switch');const wc=mk('input');wc.type='checkbox';wc.checked=!(pj.opt&&pj.opt.wx===false);
+    wg.append(mk('span',null,'Wetter am Morgen und Warnung am Vorabend (Glätte, Sturm, Nebel)'),wc);
     const tr=pj.tr||{};const [pw,pi]=field('Verkehr: Orte an der A30, mit Komma getrennt',{type:'text',value:tr.places||'',placeholder:'z. B. Bruchmühlen, Melle, Gesmold'});
     const dw=mk('label','fld');dw.append(mk('span','sub','Morgens fahre ich Richtung'));const ds=mk('select');
     [['W','Osnabrück'],['E','Bad Oeynhausen']].forEach(([v,l])=>{const o=mk('option',null,l);o.value=v;if((tr.am||'W')===v)o.selected=true;ds.append(o)});dw.append(ds);
-    const sv=mk('button','primary small','Speichern');sv.onclick=go(async()=>{await pushEdit(async p=>{p.opt={...(p.opt||{}),digest:dc.checked};p.tr={road:'A30',places:pi.value.trim(),am:ds.value}});await pushUpdate(true);PU.msg='Gespeichert.'},sv);
+    const sv=mk('button','primary small','Speichern');sv.onclick=go(async()=>{await pushEdit(async p=>{p.opt={...(p.opt||{}),digest:dc.checked,wx:wc.checked};p.tr={road:'A30',places:pi.value.trim(),am:ds.value}});await pushUpdate(true);PU.msg='Gespeichert.'},sv);
     const ts=mk('button','small','Test senden');ts.onclick=go(async()=>{await testPush();PU.msg='Test ist unterwegs. Er kommt in den nächsten 15 bis 20 Minuten.'},ts);
     const re=sent&&sent.dead?mk('button','small','Neu anmelden'):null;if(re)re.onclick=go(async()=>{await enablePush();PU.sent=null;PU.msg='Neu angemeldet.'},re);
     const off=mk('button','ghost small danger','Ausschalten');off.onclick=go(async()=>{await disablePush();PU.msg='Benachrichtigungen sind aus.'},off);
-    box.append(dg,pw,dw,btns(sv,ts,re),btns(off),mk('p','sub','Einzelne Aufgaben erinnern dich, wenn du im Bearbeiten-Fenster „🔔 Erinnern“ einschaltest oder beim Eintippen eine Uhrzeit schreibst, z. B. „Arzt anrufen morgen um 9“. Die Uhrzeiten sind ungefähr: meist kommt die Meldung bis zu 20 Minuten später.'),msg);return}
+    box.append(dg,wg,pw,dw,btns(sv,ts,re),btns(off),mk('p','sub','Einzelne Aufgaben erinnern dich, wenn du im Bearbeiten-Fenster „🔔 Erinnern“ einschaltest oder beim Eintippen eine Uhrzeit schreibst, z. B. „Arzt anrufen morgen um 9“. Die Uhrzeiten sind ungefähr: meist kommt die Meldung bis zu 20 Minuten später.'),msg);return}
   if(pj&&pj.on&&pj.dev!==DEV){box.append(mk('p','sub','Benachrichtigungen sind auf einem anderen Gerät aktiv.'));
     if(PUSH_OK){const b=mk('button','small','Stattdessen hier aktivieren');b.onclick=go(async()=>{await enablePush();PU.msg='Aktiviert. Ab jetzt kommen die Benachrichtigungen auf dieses Gerät.'},b);box.append(btns(b))}
     box.append(msg);return}
-  box.append(mk('p','sub','Morgens um 6 und nach der Arbeit um 15 Uhr eine kurze Übersicht mit Verkehr auf deinem Arbeitsweg (Mo–Fr), dazu Erinnerungen für Aufgaben mit 🔔. Die Texte werden auf dem Gerät verschlossen, GitHub und Apple sehen sie nicht.'));
+  box.append(mk('p','sub','Morgens um 5:30 und nach der Arbeit um 15 Uhr eine kurze Übersicht mit Verkehr, Wetter und Blitzern auf deinem Arbeitsweg (Mo–Fr), am Vorabend eine Warnung bei Glätte oder Sturm, dazu Erinnerungen für Aufgaben mit 🔔. Die Texte werden auf dem Gerät verschlossen, GitHub und Apple sehen sie nicht.'));
   if(!PUSH_OK){box.append(mk('p','sub bad',PUSH_MSG.nosupport),msg);return}
   if(here&&perm==='denied')box.append(mk('p','sub bad','Benachrichtigungen sind in den iPhone-Einstellungen für ArbeitsTag ausgeschaltet.'));
   const en=mk('button','primary','Benachrichtigungen aktivieren');en.onclick=go(async()=>{await enablePush();PU.msg='Aktiviert. Trag noch die Orte für den Verkehr ein und tippe auf Speichern.'},en);
   box.append(btns(en),msg)}
 
+/* ---------- Arbeitsweg: Strecke einmal berechnen (Photon + OSRM), Blitzer entlang der Strecke ---------- */
+async function geocode(q){let r;try{r=await fetch('https://photon.komoot.io/api/?'+new URLSearchParams({q,limit:'1',lang:'de',lat:'52.2',lon:'8.4'}))}catch(e){throw syncErr('net')}
+  if(!r.ok)throw syncErr('net');const f=((await r.json()).features||[])[0];if(!f)throw syncErr('where');const [lon,lat]=f.geometry.coordinates;return {lat,lon}}
+async function makeRoute(from,to){const a=await geocode(from),b=await geocode(to);let r;
+  try{r=await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson`)}catch(e){throw syncErr('net')}
+  if(!r.ok)throw syncErr('net');const rt=((await r.json()).routes||[])[0];if(!rt)throw syncErr('where');
+  const line=[],cs=rt.geometry.coordinates;cs.forEach(([lon,lat],i)=>{const l=line[line.length-1];if(!l||i===cs.length-1||distKm(l[0],l[1],lat,lon)>0.12)line.push([+lat.toFixed(5),+lon.toFixed(5)])});
+  return {from,to,line,km:Math.round(rt.distance/100)/10,min:Math.round(rt.duration/60)}}
+function onRoute(line,lat,lon){if(!line||line.length<2)return null; // Abstand zur Strecke und Position entlang der Strecke, in km
+  const kx=111.32*Math.cos(lat*Math.PI/180),ky=110.574;let best=1e9,along=0,acc=0;
+  for(let i=1;i<line.length;i++){const ax=(line[i-1][1]-lon)*kx,ay=(line[i-1][0]-lat)*ky,bx=(line[i][1]-lon)*kx,by=(line[i][0]-lat)*ky;
+    const dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy,u=l2?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/l2)):0,d=Math.hypot(ax+u*dx,ay+u*dy),seg=Math.sqrt(l2);
+    if(d<best){best=d;along=acc+u*seg}acc+=seg}
+  return {d:best,along}}
+function wayBlitzer(day,line){if(!BLZ||!line)return null;const t=todayISO(),mob=[],fix=[];
+  for(const m of BLZ.mobile||[]){if(m.lat==null||(day?m.date!==day:m.date<t))continue;const r=onRoute(line,m.lat,m.lon);
+    if(r&&r.d<=(m.approx===false?0.3:2.5))mob.push({...m,along:r.along})}
+  for(const c of BLZ.fixed||[]){if(c.lat==null)continue;const r=onRoute(line,c.lat,c.lon);if(r&&r.d<=0.2)fix.push({...c,along:r.along})}
+  mob.sort((a,b)=>a.date.localeCompare(b.date)||a.along-b.along);fix.sort((a,b)=>a.along-b.along);return {mob,fix}}
+const wbName=m=>m.road?`${m.road} (${m.place})`:`${m.place}, Ort ungefähr`;
+function routeToPush(){if(!CFG)return;ghGetJson('push.json').then(r=>{if(r&&r.json&&r.json.on)return pushEdit(async pj=>{pj.rt=PREF.route}).then(()=>pushUpdate(true))}).catch(()=>{})}
+function routeForm(after){const box=mk('div','syncbox'),r=PREF.route;
+  const [fw,fi]=field('Start (am besten nur der Ort)',{type:'text',value:r?r.from:'Bruchmühlen'});
+  const [tw,ti]=field('Ziel: Straße und Ort der Arbeit',{type:'text',value:r?r.to:'',placeholder:'z. B. Musterstraße 1, Melle'});
+  const msg=mk('div','msg');msg.setAttribute('role','status');const ok=mk('button','primary small',r?'Neu berechnen':'Strecke berechnen');
+  ok.onclick=async()=>{if(!ti.value.trim()){ti.focus();return}ok.disabled=true;msg.className='msg';msg.textContent='Strecke wird berechnet …';
+    try{PREF.route=await makeRoute(fi.value.trim()||'Bruchmühlen',ti.value.trim());prefSave();routeToPush();BR.at=0;
+      msg.textContent=`Gespeichert: ${String(PREF.route.km).replace('.',',')} km, etwa ${PREF.route.min} Minuten.`;renderBrief();if(after)setTimeout(after,900)}
+    catch(e){msg.className='msg err';msg.textContent=e&&e.code==='where'?'Adresse nicht gefunden. Schreib sie etwas genauer, mit Ort.':'Strecke ließ sich gerade nicht berechnen. Ist Internet da?'}
+    ok.disabled=false};
+  const row=mk('div','row');row.append(ok);
+  if(r){const del=mk('button','ghost small danger','Strecke löschen');del.onclick=()=>{delete PREF.route;prefSave();renderRoute();renderBrief();if(after)after()};row.append(del)}
+  box.append(fw,tw,row,msg);return box}
+function renderRoute(){const box=$('routeBox');box.replaceChildren();const r=PREF.route;
+  box.append(mk('p','sub',r?`${r.from} → ${r.to}: ${String(r.km).replace('.',',')} km, etwa ${r.min} Minuten. Blitzer auf dieser Strecke stehen im Briefing, im Blitzer-Tab unter „Arbeitsweg“ und in der Morgen-Benachrichtigung.`
+    :'Leg fest, wo du losfährst und wo du arbeitest. Die Strecke bleibt auf diesem Gerät und, wenn Benachrichtigungen an sind, in deinem privaten Repo.'),routeForm())}
+
+/* ---------- Müllabfuhr (Gemeinde Rödinghausen): Abholung als Aufgabe am Vorabend ---------- */
+const MKEY=KEY+'-muell';let MUE=null,muLoading=false;try{MUE=JSON.parse(localStorage.getItem(MKEY)||'null')}catch(e){}
+const BIN_STD=/^(Graue Tonne|Altpapiertonne|Gelbe Tonne \(|Biotonne)/;
+const binName=n=>n.replace(/\s*\(.*\)\s*$/,'');
+const binTitle=n=>{const s=binName(n);return /tonne/i.test(s)?s+' rausstellen':/sperrmüll/i.test(s)?'Sperrmüll rausstellen (wenn angemeldet)':s};
+const binSlug=n=>norm(binName(n)).replace(/[^a-z0-9]/g,'').slice(0,16);
+function pickups(from,to){if(!MUE||!PREF.street)return [];const s=MUE.streets.find(x=>x[0]===PREF.street);if(!s)return [];
+  const plan=MUE.plans[s[1]],bins=PREF.bins||MUE.types.filter(n=>BIN_STD.test(n)),out=[];
+  for(const k in plan){const n=MUE.types[+k];if(bins.includes(n))for(const d of plan[k])if(d>=from&&d<=to)out.push({d,n})}
+  return out.sort((a,b)=>a.d.localeCompare(b.d)||a.n.localeCompare(b.n))}
+function syncMuell(reset){if(S.demo||!MUE)return;const t=todayISO();let ch=false;
+  const want=new Map(pickups(addDays(t,1),addDays(t,14)).map(p=>['m-'+p.d+'-'+binSlug(p.n),p]));
+  if(reset)for(const id in S.del||{})if(want.has(id))delete S.del[id];
+  const n0=S.tasks.length;S.tasks=S.tasks.filter(x=>!x.muell||!(x.done?x.doneOn<addDays(t,-7):(x.muell<t||(reset&&!want.has(x.id)))));if(S.tasks.length!==n0)ch=true;
+  for(const [id,p] of want){if(S.tasks.some(x=>x.id===id)||(S.del&&S.del[id]))continue;
+    S.tasks.push({id,title:binTitle(p.n),rule:null,due:addDays(p.d,-1),bell:true,muell:p.d,streak:0,best:0,created:t});ch=true}
+  if(ch){save();render()}}
+async function loadMuell(){if(IN_ARTIFACT||muLoading)return;muLoading=true;
+  try{const r=await fetch('muell.json?t='+Math.floor(Date.now()/216e5),{cache:'no-store'});if(r.ok){const d=await r.json();
+    if(d&&Array.isArray(d.streets)){MUE=d;try{localStorage.setItem(MKEY,JSON.stringify(d))}catch(e){}}}}catch(e){}
+  muLoading=false;syncMuell();if(!$('sheet').hidden)renderMuell();renderBrief()}
+function renderMuell(){const box=$('muellBox');box.replaceChildren();
+  if(!MUE){box.append(mk('p','sub',IN_ARTIFACT?'Der Müllkalender kommt, sobald die App über GitHub läuft.':'Termine werden geladen …'));return}
+  box.append(mk('p','sub','Termine der Gemeinde Rödinghausen. Am Abend vor der Abholung steht die Tonne als Aufgabe mit 🔔 in deiner Liste und in der Feierabend-Übersicht um 15 Uhr.'));
+  const w=mk('label','fld');w.append(mk('span','sub','Deine Straße'));const sel=mk('select');sel.append(new Option('– keine –',''));
+  MUE.streets.forEach(([n])=>sel.append(new Option(n,n,false,n===PREF.street)));w.append(sel);
+  const bins=PREF.bins||MUE.types.filter(n=>BIN_STD.test(n));
+  const cbs=MUE.types.map(n=>{const l=mk('label','switch');const c=mk('input');c.type='checkbox';c.checked=bins.includes(n);c.dataset.n=n;l.append(mk('span',null,binName(n)),c);return l});
+  const det=mk('details');const sm=mk('summary','sub','Welche Abfuhren? ('+bins.length+' gewählt)');sm.style.cursor='pointer';det.append(sm);
+  const inner=mk('div','syncbox');inner.style.marginTop='8px';inner.append(...cbs);det.append(inner);
+  const msg=mk('div','msg');msg.setAttribute('role','status');const sv=mk('button','primary small','Speichern');
+  sv.onclick=()=>{PREF.street=sel.value||null;PREF.bins=cbs.map(l=>l.querySelector('input')).filter(c=>c.checked).map(c=>c.dataset.n);prefSave();
+    if(S.demo){msg.className='msg err';msg.textContent='Entferne zuerst die Beispiel-Aufgaben, dann kommen die Tonnen in deine Liste.';return}
+    syncMuell(true);render();renderBrief();const t=todayISO(),nx=pickups(t,addDays(t,40))[0];msg.className='msg';
+    msg.textContent=!PREF.street?'Müllabfuhr ausgeschaltet.':nx?`Gespeichert. Nächste Abholung: ${binName(nx.n)}, ${dayLabel(nx.d)}.`:'Gespeichert.'};
+  const row=mk('div','row');row.append(sv);box.append(w,det,row,msg)}
+
+/* ---------- Spritpreise: Tankerkönig (CC BY 4.0), der Schlüssel bleibt auf dem Gerät ---------- */
+const FUELS=[['e5','Super E5'],['e10','Super E10'],['diesel','Diesel']];
+const SP_AREAS=[{name:'Bruchmühlen',lat:52.2003,lon:8.4554},{name:'Melle',lat:52.2036,lon:8.3376}];
+let SPR=null;try{SPR=JSON.parse(localStorage.getItem(KEY+'-sprit')||'null')}catch(e){}
+const euro=p=>p?p.toFixed(3).replace('.',',')+' €':'–';
+async function loadSprit(force){if(!PREF.tk||IN_ARTIFACT)return;if(!force&&SPR&&SPR.k===PREF.tk&&Date.now()-SPR.at<10*60000)return;
+  const out={at:Date.now(),k:PREF.tk,areas:[]};
+  for(const a of SP_AREAS){let r;try{r=await fetch('https://creativecommons.tankerkoenig.de/json/list.php?'+new URLSearchParams({lat:a.lat,lng:a.lon,rad:'4',sort:'dist',type:'all',apikey:PREF.tk}))}catch(e){throw syncErr('net')}
+    const j=await r.json().catch(()=>({}));if(!j.ok)throw syncErr('tk');
+    out.areas.push({name:a.name,st:(j.stations||[]).map(s=>({n:s.brand||s.name,street:[s.street,s.houseNumber].filter(Boolean).join(' '),place:s.place,open:s.isOpen,e5:s.e5,e10:s.e10,diesel:s.diesel}))})}
+  SPR=out;try{localStorage.setItem(KEY+'-sprit',JSON.stringify(out))}catch(e){}}
+function cheapest(area,fuel,n){return area.st.filter(s=>s.open&&typeof s[fuel]==='number'&&s[fuel]>0).sort((a,b)=>a[fuel]-b[fuel]).slice(0,n)}
+function renderSprit(){const box=$('spritBox');box.replaceChildren();
+  box.append(mk('p','sub','Aktuelle Preise rund um Bruchmühlen und Melle im Briefing. Dafür brauchst du einen kostenlosen Schlüssel von creativecommons.tankerkoenig.de (Daten: MTS-K, Lizenz CC BY 4.0).'));
+  const [kw,ki]=field('Tankerkönig-Schlüssel',{type:'password',value:PREF.tk||'',placeholder:'00000000-0000-…',autocomplete:'off'});
+  const fw=mk('label','fld');fw.append(mk('span','sub','Ich tanke'));const fs=mk('select');FUELS.forEach(([v,l])=>fs.append(new Option(l,v,false,(PREF.fuel||'e5')===v)));fw.append(fs);
+  const msg=mk('div','msg');msg.setAttribute('role','status');const sv=mk('button','primary small','Speichern');
+  sv.onclick=async()=>{PREF.tk=ki.value.trim()||null;PREF.fuel=fs.value;prefSave();msg.className='msg';if(!PREF.tk){msg.textContent='Gespeichert. Ohne Schlüssel keine Preise.';renderBrief();return}
+    sv.disabled=true;msg.textContent='Prüfe Schlüssel …';try{await loadSprit(true);msg.textContent='Klappt. Die Preise stehen im Briefing.';BR.sp=SPR;BR.spErr=''}
+    catch(e){msg.className='msg err';msg.textContent=e.code==='net'?'Keine Verbindung zu Tankerkönig.':'Der Schlüssel wird nicht angenommen. Bitte prüfen.'}sv.disabled=false;renderBrief()};
+  const row=mk('div','row');row.append(sv);box.append(kw,fw,row,msg)}
+
+/* ---------- Wetter (Open-Meteo, DWD-Warnungen über Bright Sky) und Verkehr (Autobahn GmbH) ---------- */
+const WMO={0:'klar',1:'überwiegend klar',2:'teils bewölkt',3:'bedeckt',45:'Nebel',48:'Nebel mit Reif',51:'leichter Niesel',53:'Nieselregen',55:'starker Niesel',56:'gefrierender Niesel',57:'gefrierender Niesel',
+  61:'leichter Regen',63:'Regen',65:'starker Regen',66:'gefrierender Regen',67:'gefrierender Regen',71:'leichter Schnee',73:'Schneefall',75:'starker Schneefall',77:'Schneegriesel',
+  80:'Schauer',81:'Regenschauer',82:'heftige Schauer',85:'Schneeschauer',86:'Schneeschauer',95:'Gewitter',96:'Gewitter mit Hagel',99:'Gewitter mit Hagel'};
+const wxPoint=()=>PREF.route&&PREF.route.line?{lat:PREF.route.line[0][0],lon:PREF.route.line[0][1]}:FALLBACK_CENTER;
+const deg=v=>Math.round(v)+' °C';
+async function getJSON(u){let r;try{r=await fetch(u,{cache:'no-store'})}catch(e){throw syncErr('net')}if(!r.ok)throw syncErr('http');return r.json()}
+async function loadWeather(){const p=wxPoint();
+  return getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&current=temperature_2m,weather_code,wind_gusts_10m`
+    +`&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_gusts_10m&daily=temperature_2m_min,temperature_2m_max&timezone=Europe%2FBerlin&forecast_days=2`)}
+async function loadAlerts(){const p=wxPoint();const j=await getJSON(`https://api.brightsky.dev/alerts?lat=${p.lat}&lon=${p.lon}`);
+  const now=Date.now();return (j.alerts||[]).filter(a=>Date.parse(a.expires||0)>now&&Date.parse(a.onset||0)<now+30*3600e3)}
+function wxHour(w,day,h){const i=w.hourly.time.indexOf(`${day}T${String(h).padStart(2,'0')}:00`);if(i<0)return null;
+  return {t:w.hourly.temperature_2m[i],p:w.hourly.precipitation_probability[i],mm:w.hourly.precipitation[i],c:w.hourly.weather_code[i],g:w.hourly.wind_gusts_10m[i]}}
+function wxRisk(w,day){const hs=[4,5,6,7,8].map(h=>wxHour(w,day,h)).filter(Boolean);if(!hs.length)return [];const r=[];
+  const minT=Math.min(...hs.map(h=>h.t)),wet=hs.some(h=>h.mm>0||h.p>=50),frz=hs.some(h=>[56,57,66,67,71,73,75,77,85,86].includes(h.c));
+  if(frz||(minT<=1&&wet))r.push('Glättegefahr');else if(minT<=0)r.push('Frost, Scheiben freikratzen');
+  if(hs.some(h=>h.g>=60))r.push('Sturmböen bis '+Math.round(Math.max(...hs.map(h=>h.g)))+' km/h');
+  if(hs.some(h=>h.c===45||h.c===48))r.push('Nebel');if(hs.some(h=>h.c>=95))r.push('Gewitter');return r}
+const A30_ORDER=['amsterdam','hengelo','oldenzaal','bad bentheim','gildehaus','schüttorf','salzbergen','rheine','hörstel','ibbenbüren','lotte','osnabrück','hasbergen','hellern','sutthausen','nahne',
+  'gesmold','melle','riemsloh','bruchmühlen','rödinghausen','kirchlengern','hiddenhausen','bünde','löhne','bad oeynhausen','hannover'];
+const DIRN={W:'Osnabrück',E:'Bad Oeynhausen'};
+const a30Pos=s=>{s=s.toLowerCase();return A30_ORDER.findIndex(k=>s.includes(k))};
+function trDirs(it){const sub=(it.subtitle||'').trim();let m=sub.match(/^(.+?)\s*(?:->|→)\s*(.+)$/);
+  if(m){const a=a30Pos(m[1]),b=a30Pos(m[2]);if(a>=0&&b>=0&&a!==b)return b>a?['E']:['W']}
+  const txt=[it.title||'',sub,...(it.description||[])].join(' ').toLowerCase();m=txt.match(/\b(?:a\d+\s+)?([a-zäöüß .-]{3,30}?)\s+richtung\s+([a-zäöüß .-]{3,30})/);
+  if(m){const a=a30Pos(m[1]),b=a30Pos(m[2]);if(a>=0&&b>=0&&a!==b)return b>a?['E']:['W']}return ['W','E']}
+const trSection=it=>{const m=(it.title||'').match(/^\s*A\d+\s*\|\s*(.+?)\s+-\s+(.+?)\s*$/);return m?[m[1].trim(),m[2].trim()]:null};
+function trDescribe(it,kind){const sec=trSection(it);let where;
+  if(sec)where=`zwischen ${sec[0]} und ${sec[1]}`;else{let t=(it.title||'').replace(/^\s*A\d+\s*[-|]\s*/,'').replace(/\s*[-:]?\s*A[ikl]D\s*\d+\s*$/i,'').replace(' - ',': ');where=t?': '+(t.length>90?t.slice(0,90).replace(/\s\S*$/,'')+'…':t):''}
+  const typ=String(it.abnormalTrafficType||'').toUpperCase();
+  const word=kind==='closure'||String(it.isBlocked)==='true'?'Sperrung':kind==='warning'?(/STATIONARY|QUEUING|SLOW/.test(typ)||!typ?'Stau':'Verkehrsmeldung'):'Baustelle';
+  let s=(word+(where.startsWith('zwischen')?' '+where:where)).trim();const d=parseInt(it.delayTimeValue||0,10);if(d>0)s+=` (+${d} Min.)`;return s}
+function trOnRoute(it,places){const hit=s=>places.some(p=>s.toLowerCase().includes(p.toLowerCase()));const sec=trSection(it);
+  return sec?hit(sec[0])&&hit(sec[1]):hit([it.title||'',it.subtitle||'',...(it.description||[])].join(' '))}
+async function loadTraffic(dir,places){const hits={closure:[],warning:[],roadworks:[]},now=Date.now();
+  await Promise.all(Object.keys(hits).map(async kind=>{const j=await getJSON(`https://verkehr.autobahn.de/o/autobahn/A30/services/${kind}`);
+    for(const it of j[kind]||[]){if(it.future===true||!trOnRoute(it,places))continue;if(it.startTimestamp&&Date.parse(it.startTimestamp)>now+3600e3)continue;
+      if(!trDirs(it).includes(dir))continue;const l=trDescribe(it,kind);if(l&&!hits[kind].includes(l))hits[kind].push(l)}}));return hits}
+
+/* ---------- Briefing auf „Heute“: Wetter, A30, Blitzer, Müll, Sprit, Berichtsheft ---------- */
+const BR={at:0,busy:false,pjTried:false,open:true};try{BR.open=localStorage.getItem(KEY+'-brief')!=='0'}catch(e){}
+const trConf=()=>{const tr=(PU.pj&&PU.pj.tr)||{};const pl=String(tr.places||'').split(/[,;]/).map(s=>s.trim()).filter(s=>s.length>=3);
+  return {places:pl.length?pl:['Bruchmühlen','Melle','Gesmold'],am:tr.am||'W'}};
+async function refreshBrief(force){if(IN_ARTIFACT){renderBrief();return}if(BR.busy||(!force&&Date.now()-BR.at<5*60000)){renderBrief();return}BR.busy=true;BR.at=Date.now();
+  if(CFG&&!PU.pj&&!BR.pjTried){BR.pjTried=true;try{const r=await ghGetJson('push.json');if(r&&r.json){PU.pj=r.json;if(r.json.rt&&!PREF.route){PREF.route=r.json.rt;prefSave()}}}catch(e){}}
+  const tc=trConf(),hh=new Date().getHours(),dir=hh<12||hh>=18?tc.am:(tc.am==='W'?'E':'W');
+  const [wx,al,tr]=await Promise.allSettled([loadWeather(),loadAlerts(),loadTraffic(dir,tc.places),loadSprit().catch(e=>{BR.spErr=e.code||'http'})]);
+  if(wx.status==='fulfilled')BR.wx=wx.value;if(al.status==='fulfilled')BR.al=al.value;
+  if(tr.status==='fulfilled'){BR.tr=tr.value;BR.trDir=dir;BR.trErr=false}else BR.trErr=true;
+  if(SPR&&SPR.k===PREF.tk)BR.sp=SPR;BR.busy=false;renderBrief()}
+function brRow(ic,k,v,cls){const r=mk('div','br');r.append(mk('div','ic',ic),mk('div','k',k));const vv=mk('div','v'+(cls?' '+cls:''),v);r.append(vv);return r}
+const brLink=(txt,fn)=>{const b=mk('button','lk',txt);b.onclick=fn;return b};
+function openMenu(id){$('menuBtn').click();setTimeout(()=>{const e=$(id);if(e&&e.previousElementSibling)e.previousElementSibling.scrollIntoView({block:'start',behavior:RM?'auto':'smooth'})},60)}
+function renderBrief(){const body=$('briefBody');if(!body)return;const now=new Date(),t=todayISO(),h=now.getHours(),wd=now.getDay(),work=wd>0&&wd<6;
+  const morning=h<12,tomorrow=addDays(t,1);
+  $('briefTi').textContent=h<12?'Morgenbriefing':h<18?'Feierabend':'Für morgen';
+  $('briefTgl').setAttribute('aria-expanded',BR.open);body.hidden=!BR.open;body.replaceChildren();const sum=[];
+  // Wetter
+  if(BR.wx){const w=BR.wx,c=w.current,r=mk('div','br');r.append(mk('div','ic','🌤'),mk('div','k','Wetter'),mk('div','v',`${deg(c.temperature_2m)}, ${WMO[c.weather_code]||''}`));
+    sum.push(deg(c.temperature_2m));const di=w.daily.time.indexOf(t),parts=[];
+    if(di>=0)parts.push(`Heute ${Math.round(w.daily.temperature_2m_min[di])} bis ${deg(w.daily.temperature_2m_max[di])}`);
+    const slot=(day,hh,lbl)=>{const x=wxHour(w,day,hh);if(x)parts.push(`${lbl}: ${deg(x.t)}`+(x.p>=30?`, Regen ${x.p} %`:''))};
+    if(h<15)slot(t,15,'15 Uhr');else slot(tomorrow,6,'Morgen 6 Uhr');if(h<6)slot(t,6,'6 Uhr');
+    r.append(mk('div','d',parts.join(' · ')));
+    const risk=wxRisk(w,h<9?t:tomorrow);if(risk.length){r.append(mk('div','v warn',(h<9?'Heute früh: ':'Morgen früh: ')+risk.join(', ')));sum.push('⚠ '+risk[0])}
+    (BR.al||[]).slice(0,2).forEach(a=>{const until=new Date(a.expires).toLocaleString('de-DE',{weekday:'short',hour:'2-digit',minute:'2-digit'});const ev=String(a.event_de||a.headline_de||'').toLowerCase();r.append(mk('div','v warn',`DWD-Warnung: ${ev.charAt(0).toUpperCase()+ev.slice(1)} (bis ${until} Uhr)`))});
+    body.append(r)}
+  else body.append(brRow('🌤','Wetter',IN_ARTIFACT?'Kommt, sobald die App über GitHub läuft.':'Wird geladen …'));
+  // Verkehr
+  {const r=brRow('🚗',`A30 → ${DIRN[BR.trDir||trConf().am]}`,'');const v=r.lastChild;
+    if(BR.tr){const T=BR.tr,bad=T.closure.concat(T.warning);if(bad.length){v.className='v warn';v.textContent=bad.join('; ');sum.push('A30 '+(T.closure.length?'Sperrung':'Stau'))}
+      else{v.className='v ok';v.textContent='frei, kein Stau';sum.push('A30 frei')}
+      const key=x=>x.replace(/^\S+\s*/,''),rw=T.roadworks.filter(x=>!bad.some(b=>key(b)===key(x)));if(rw.length)r.append(mk('div','d',rw.slice(0,2).join('; ')))}
+    else v.textContent=BR.trErr?'Verkehrsmeldungen gerade nicht abrufbar.':IN_ARTIFACT?'Kommt, sobald die App über GitHub läuft.':'Wird geladen …';body.append(r)}
+  // Blitzer
+  {const day=morning?t:tomorrow,r=brRow('📷','Blitzer auf dem Weg','');const v=r.lastChild;
+    if(!PREF.route){v.textContent='Noch kein Arbeitsweg festgelegt.';r.append(brLink('Arbeitsweg festlegen',()=>openMenu('routeBox')))}
+    else{const w=wayBlitzer(day,PREF.route.line);if(!w){v.textContent='Wird geladen …'}
+      else{v.textContent=w.mob.length?`${morning?'Heute':'Morgen'}: `+w.mob.map(wbName).join(', '):`${morning?'Heute':'Morgen'} nichts angekündigt`;if(w.mob.length){v.className='v warn';sum.push(`${w.mob.length} Blitzer`)}
+        if(w.fix.length)r.append(mk('div','d',`${w.fix.length} feste ${w.fix.length===1?'Anlage':'Anlagen'} auf der Strecke`));
+        r.append(brLink('Alle zeigen',()=>{BF='weg';showTab('blitzer')}))}}body.append(r)}
+  // Müll
+  {const r=brRow('🗑','Müllabfuhr','');const v=r.lastChild;
+    if(!PREF.street){v.textContent=MUE?'Noch keine Straße gewählt.':'Wird geladen …';if(MUE)r.append(brLink('Straße wählen',()=>openMenu('muellBox')))}
+    else{const ps=pickups(t,addDays(t,7));if(!ps.length)v.textContent='Diese Woche keine Abholung.';
+      else{const by={};ps.forEach(p=>(by[p.d]=by[p.d]||[]).push(binName(p.n)));v.textContent=Object.keys(by).slice(0,3).map(d=>`${d===t?'heute':dayLabel(d)}: ${by[d].join(', ')}`).join(' · ');
+        if(by[tomorrow]&&h>=12){v.className='v warn';sum.push('Tonne raus')}}}body.append(r)}
+  // Sprit
+  {const fuel=PREF.fuel||'e5',fl=FUELS.find(f=>f[0]===fuel)[1],r=brRow('⛽',fl,'');const v=r.lastChild;
+    if(!PREF.tk){v.textContent='Für Preise einen Tankerkönig-Schlüssel eintragen.';r.append(brLink('Einrichten',()=>openMenu('spritBox')))}
+    else if(BR.sp){v.remove();BR.sp.areas.forEach(a=>{const c=cheapest(a,fuel,2);r.append(mk('div','v',`${a.name}: `+(c.length?c.map(s=>`${s.n} ${euro(s[fuel])}`).join(' · '):'gerade nichts geöffnet')))});
+      r.append(mk('div','d',`Stand ${new Date(BR.sp.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} · Tankerkönig, CC BY 4.0`))}
+    else v.textContent=BR.spErr==='tk'?'Schlüssel wird nicht angenommen.':'Wird geladen …';body.append(r)}
+  // Berichtsheft
+  {const r=brRow('📒','Berichtsheft','');const v=r.lastChild,ws=addDays(t,-((wd+6)%7)),n=[0,1,2,3,4].filter(i=>bhText(addDays(ws,i))).length;
+    if(work&&h>=12&&!bhText(t)){v.textContent='Was war heute? Noch nichts eingetragen.';r.append(brLink('Jetzt eintragen',()=>bhOpen(t)))}
+    else{v.textContent=(work&&bhText(t)?'Heute eingetragen ✓ · ':'')+`Diese Woche ${n} von 5 Tagen`;r.append(brLink('Öffnen',()=>bhOpen(work?t:addDays(ws,4))))}body.append(r)}
+  $('briefSu').textContent=sum.join(' · ')}
+window.refreshBrief=refreshBrief;
+$('briefTgl').onclick=()=>{BR.open=!BR.open;try{localStorage.setItem(KEY+'-brief',BR.open?'1':'0')}catch(e){}renderBrief()};
+
+/* ---------- Berichtsheft: kurze Einträge je Tag, verschlüsselt abgeglichen als berichtsheft.sync ---------- */
+const BHKEY=KEY+'-bh',BH_FILE='berichtsheft.sync';let BH={e:{}};try{BH=JSON.parse(localStorage.getItem(BHKEY)||'null')||{e:{}}}catch(e){}
+const bhStore=()=>{try{localStorage.setItem(BHKEY,JSON.stringify(BH))}catch(e){}};
+const bhText=d=>(BH.e[d]&&BH.e[d].t)||'';
+function bhMerge(a,b){const e={...(a.e||{})};for(const d in b.e||{})if(!e[d]||(b.e[d].u||0)>(e[d].u||0))e[d]=b.e[d];return {e}}
+let bhBusy=false,bhLast=0,bhDay=null;
+async function bhSync(){if(!CFG||!CFG.key||IN_ARTIFACT||bhBusy)return;bhBusy=true;
+  try{const key=await keyFrom(CFG.key);
+    for(let i=0;i<3;i++){const rem=await remoteGet(CFG,BH_FILE);let remote={e:{}};
+      if(rem){if(rem.env.salt!==CFG.salt)throw syncErr('pass');remote=await unseal(rem.env,key)}
+      const m=bhMerge(remote,BH);if(canon(m)!==canon(BH)){BH=m;bhStore()}
+      if(rem&&canon(m)===canon(remote))break;
+      if(await remotePut(CFG,await seal(m,key,CFG.salt),rem&&rem.sha,BH_FILE))break}
+    bhLast=Date.now()}catch(e){}
+  bhBusy=false;if(!$('bhSheet').hidden)bhWeek();renderBrief()}
+const wdShort=d=>WD[D(d).getDay()]+' '+D(d).toLocaleDateString('de-DE',{day:'numeric',month:'numeric'});
+function kw(d){const x=D(d);x.setDate(x.getDate()+3-((x.getDay()+6)%7));const y=new Date(x.getFullYear(),0,4);return 1+Math.round(((x-y)/864e5-3+((y.getDay()+6)%7))/7)}
+function bhWeek(){const d=bhDay,ws=addDays(d,-((D(d).getDay()+6)%7)),list=$('bhWeek');list.replaceChildren();$('bhWeekL').textContent=`KW ${kw(d)}`;
+  for(let i=0;i<5;i++){const day=addDays(ws,i),b=mk('button','bh-row');b.setAttribute('aria-current',day===d);const tx=bhText(day);
+    b.append(mk('b',null,WD[D(day).getDay()]),mk('span',tx?null:'no',tx||'–'));b.onclick=()=>{bhKeep();bhOpen(day)};list.append(b)}}
+function bhKeep(){const tx=$('bhText').value.trim();if(bhDay&&tx!==bhText(bhDay)){BH.e[bhDay]={t:tx,u:Date.now()};bhStore();return true}return false}
+function bhOpen(d){bhDay=d;$('bhDate').value=d;$('bhText').value=bhText(d);$('bhMsg').textContent='';$('bhSheet').hidden=false;bhWeek();
+  if(Date.now()-bhLast>60000)bhSync()}
+function bhClose(){if(bhKeep())bhSync();$('bhSheet').hidden=true;renderBrief()}
+$('bhClose').onclick=bhClose;$('bhSheet').onclick=e=>{if(e.target===$('bhSheet'))bhClose()};
+$('bhDate').onchange=e=>{if(!e.target.value)return;bhKeep();bhOpen(e.target.value)};
+$('bhSave').onclick=()=>{const ch=bhKeep();bhWeek();$('bhMsg').className='msg';$('bhMsg').textContent=ch?(CFG?'Gespeichert und wird abgeglichen.':'Gespeichert auf diesem Gerät.'):'Schon gespeichert.';if(ch)bhSync();renderBrief()};
+$('bhCopy').onclick=()=>{bhKeep();const ws=addDays(bhDay,-((D(bhDay).getDay()+6)%7));
+  const txt=`Berichtsheft KW ${kw(bhDay)}\n`+[0,1,2,3,4].map(i=>{const d=addDays(ws,i);return `\n${wdShort(d)}:\n`+(bhText(d)||'–')}).join('\n');
+  const m=$('bhMsg');m.className='msg';try{navigator.clipboard.writeText(txt).then(()=>{m.textContent='Woche kopiert.'},()=>{m.textContent='Kopieren ging nicht.'})}catch(e){m.textContent='Kopieren ging nicht.'}};
+
 /* ---------- Start ---------- */
 load();snapInit();render();
 let st='heute';try{st=localStorage.getItem(KEY+'-tab')||'heute'}catch(e){}showTab(['welt','region','blitzer'].includes(st)?st:'heute');
-if(CFG){setSync('');syncNow()}
+if(CFG){setSync('');syncNow();setTimeout(bhSync,4000)}
+syncMuell();loadMuell();renderBrief();
 let lastDay=todayISO();
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(todayISO()!==lastDay){lastDay=todayISO();openEdit=null}render();if(cur!=='heute'&&window.renderWelt)renderWelt()}});
-setInterval(()=>{if(todayISO()!==lastDay){lastDay=todayISO();render()}},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(todayISO()!==lastDay){lastDay=todayISO();openEdit=null;syncMuell()}render();if(cur==='heute')refreshBrief();else if(window.renderWelt)renderWelt();if(CFG&&Date.now()-bhLast>10*60000)bhSync()}});
+setInterval(()=>{if(todayISO()!==lastDay){lastDay=todayISO();syncMuell();render()}if(!document.hidden&&cur==='heute')refreshBrief()},60000);
 if(!IN_ARTIFACT&&'serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 </script>
 
