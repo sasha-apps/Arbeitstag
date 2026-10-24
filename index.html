@@ -660,7 +660,7 @@ function blitzerPool(){
     name:c.road||'Feste Anlage',place:c.place,maxspeed:c.maxspeed,red:c.kind==='red_light',
     km:distKm(o.lat,o.lon,c.lat,c.lon),exact:true}));
   const mob=(BLZ.mobile||[]).filter(m=>m.date>=t).map(m=>({kind:'mob',
-    name:m.road||m.place,place:m.place,date:m.date,src:m.src,exact:!!m.road,
+    name:m.road||m.place,place:m.place,date:m.date,src:m.src,exact:m.approx===false,
     km:m.lat!=null?distKm(o.lat,o.lon,m.lat,m.lon):null}));
   let pool;
   if(BF==='fest')pool=fix.slice();
