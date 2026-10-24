@@ -1,0 +1,71 @@
+name: Netztest (einmalig)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dienste anfragen
+        run: |
+          python3 - <<'PY' > netztest.txt 2>&1
+          import urllib.request, urllib.parse, json, time, re, html
+          UA = "ArbeitsTag/1.0 (+https://github.com/sasha-apps/Arbeitstag)"
+
+          def get(url, data=None, timeout=60):
+              hdr = {"User-Agent": UA, "Accept": "application/json,text/html,*/*"}
+              if data:
+                  hdr["Content-Type"] = "application/x-www-form-urlencoded"
+                  data = urllib.parse.urlencode({"data": data}).encode()
+              req = urllib.request.Request(url, data=data, headers=hdr)
+              with urllib.request.urlopen(req, timeout=timeout) as r:
+                  return r.read().decode("utf-8", "replace")
+
+          Q = ('[out:json][timeout:25];node["place"~"^(city|town|village)$"]["name"]'
+               '(52.15,8.35,52.30,8.55);out tags center;')
+          QA = ('[out:json][timeout:60];'
+                'area["boundary"="administrative"]["admin_level"="6"]["name"="Kreis Herford"]->.hf;'
+                'node["highway"="speed_camera"](area.hf);out tags center;')
+          print("== Overpass: Orte (BBox) und feste Anlagen (Kreisflaeche) ==")
+          for host in ["https://overpass-api.de", "https://overpass.kumi.systems",
+                       "https://overpass.private.coffee", "https://overpass.osm.ch",
+                       "https://overpass.openstreetmap.ru", "https://overpass.osm.rambler.ru"]:
+              for label, q in (("BBOX", Q), ("AREA", QA)):
+                  t0 = time.time()
+                  try:
+                      txt = get(host + "/api/interpreter", q)
+                      n = len(json.loads(txt).get("elements", [])) if txt.lstrip().startswith("{") else -1
+                      print(f"  {host.split('//')[1]:32s} {label}  {time.time()-t0:5.1f}s  elemente={n}")
+                  except Exception as e:
+                      print(f"  {host.split('//')[1]:32s} {label}  {time.time()-t0:5.1f}s  {type(e).__name__}: {str(e)[:90]}")
+
+          print("\n== Landkreis Osnabrueck: was steht auf der Seite? ==")
+          try:
+              doc = get("https://www.landkreis-osnabrueck.de/fachthemen/ordnung-und-verkehr/baustellen-und-blitzplan")
+              print(f"  Laenge: {len(doc)}")
+              i = doc.find("Geschwindigkeitsmessplan")
+              print(f"  Fundstelle 'Geschwindigkeitsmessplan': {i}")
+              if i >= 0:
+                  chunk = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", doc[i:i+2500]))).strip()
+                  print("  Textauszug:", chunk[:700])
+              else:
+                  print("  Auszug Seitenanfang:", re.sub(r"\s+", " ", doc[:400]))
+          except Exception as e:
+              print(f"  FEHLER: {type(e).__name__}: {str(e)[:200]}")
+          PY
+          cat netztest.txt
+      - name: Ergebnis speichern
+        run: |
+          git config user.name "arbeitstag-bot"
+          git config user.email "arbeitstag-bot@users.noreply.github.com"
+          git add netztest.txt
+          git diff --cached --quiet -- netztest.txt && exit 0
+          git commit -m "Netztest"
+          git pull --rebase --autostash
+          git push
