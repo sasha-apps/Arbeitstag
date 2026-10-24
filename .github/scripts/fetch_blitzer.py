@@ -7,7 +7,8 @@ Quellen:
   * landkreis-osnabrueck.de – Geschwindigkeitsmessplan, nur Tag und Ort.
 
 Straßen aus den Ankündigungen werden über OpenStreetMap in Koordinaten umgerechnet,
-damit die App nach Entfernung sortieren kann. Nur Standardbibliothek.
+damit die App nach Entfernung sortieren kann. Wenige große Abfragen statt vieler
+kleiner, damit der Lauf schnell bleibt. Nur Standardbibliothek.
 """
 import json, re, sys, html, time, math, urllib.request, urllib.parse
 from datetime import datetime, timezone, date
@@ -18,51 +19,40 @@ OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.sy
 KH_URL = "https://www.kreis-herford.de/Startseite/Blitzer/"
 LKOS_URL = "https://www.landkreis-osnabrueck.de/fachthemen/ordnung-und-verkehr/baustellen-und-blitzplan"
 
-# Mittelpunkt: Bruchmühlen (wird, wenn möglich, aus OSM bestätigt)
 CENTER = {"name": "Bruchmühlen", "lat": 52.2075, "lon": 8.4283}
-NEAR_KM = 30.0  # so weit schauen wir um Bruchmühlen herum
-
-KREIS_HF = "Kreis Herford"
-LK_OS = "Landkreis Osnabrück"
-GEMEINDEN = [(KREIS_HF, g) for g in
-             ["Bünde", "Enger", "Herford", "Hiddenhausen", "Kirchlengern",
-              "Löhne", "Rödinghausen", "Spenge", "Vlotho"]] + [(LK_OS, "Melle")]
-
-WD = {"montag": 0, "dienstag": 1, "mittwoch": 2, "donnerstag": 3,
-      "freitag": 4, "samstag": 5, "sonntag": 6}
-MONATE = {"januar": 1, "februar": 2, "märz": 3, "april": 4, "mai": 5, "juni": 6,
-          "juli": 7, "august": 8, "september": 9, "oktober": 10, "november": 11, "dezember": 12}
+NEAR_KM = 30.0            # so weit schauen wir um Bruchmühlen herum
+BBOX = (52.00, 8.10, 52.50, 9.00)   # Kreis Herford, Melle und Umgebung
+MAX_PLACE_KM = 7.0        # so weit darf eine Straße vom Ortsmittelpunkt entfernt sein
 
 
 def log(*a):
     print(*a, file=sys.stderr, flush=True)
 
 
-def fetch(url, data=None, tries=3):
+def fetch(url, data=None, tries=2, timeout=90):
     last = None
     for i in range(tries):
         try:
-            req = urllib.request.Request(
-                url, data=data,
-                headers={"User-Agent": UA, "Accept": "*/*",
-                         "Content-Type": "application/x-www-form-urlencoded"} if data
-                else {"User-Agent": UA, "Accept": "text/html,*/*"})
-            with urllib.request.urlopen(req, timeout=180) as r:
+            hdr = {"User-Agent": UA, "Accept": "*/*"}
+            if data:
+                hdr["Content-Type"] = "application/x-www-form-urlencoded"
+            req = urllib.request.Request(url, data=data, headers=hdr)
+            with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read().decode("utf-8", "replace")
         except Exception as e:
             last = e
             log(f"  Versuch {i+1} fehlgeschlagen: {e}")
-            time.sleep(5 * (i + 1))
+            if i + 1 < tries:
+                time.sleep(6)
     raise last
 
 
-def overpass(q):
-    """Overpass-Abfrage, mit Ausweichserver."""
+def overpass(q, timeout=90):
     body = urllib.parse.urlencode({"data": q}).encode()
     last = None
     for url in OVERPASS:
         try:
-            txt = fetch(url, data=body)
+            txt = fetch(url, data=body, timeout=timeout)
             if not txt.lstrip().startswith("{"):
                 raise ValueError("keine JSON-Antwort: " + txt[:120].replace("\n", " "))
             return json.loads(txt)
@@ -74,65 +64,91 @@ def overpass(q):
 
 def haversine(a_lat, a_lon, b_lat, b_lon):
     R = 6371.0
-    p1, p2 = math.radians(a_lat), math.radians(b_lat)
     dp = math.radians(b_lat - a_lat)
     dl = math.radians(b_lon - a_lon)
-    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(h))
+    h = (math.sin(dp / 2) ** 2 +
+         math.cos(math.radians(a_lat)) * math.cos(math.radians(b_lat)) * math.sin(dl / 2) ** 2)
+    return 2 * R * math.asin(min(1.0, math.sqrt(h)))
 
 
 def esc(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def area_prolog(kreis, gemeinde):
-    """Gemeindefläche sicher über die Kreisfläche eingrenzen."""
-    return (f'area["boundary"="administrative"]["admin_level"="6"]["name"="{esc(kreis)}"]->.kreis;\n'
-            f'rel["boundary"="administrative"]["admin_level"="8"]["name"="{esc(gemeinde)}"](area.kreis);\n'
-            f'map_to_area->.a;\n')
-
-
 def strip_tags(s):
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", s or ""))).strip()
 
 
-# ---------- feste Anlagen aus OpenStreetMap ----------
+# Melle über den Landkreis eingrenzen, damit kein gleichnamiger Ort anderswo mitkommt
+AREAS = ('area["boundary"="administrative"]["admin_level"="6"]["name"="Kreis Herford"]->.hf;\n'
+         'area["boundary"="administrative"]["admin_level"="6"]["name"="Landkreis Osnabrück"]->.lkos;\n'
+         'rel["boundary"="administrative"]["admin_level"="8"]["name"="Melle"](area.lkos);\n'
+         'map_to_area->.me;\n')
 
-def fixed_cameras():
-    out = []
-    for kreis, gem in GEMEINDEN:
-        q = ("[out:json][timeout:180];\n" + area_prolog(kreis, gem) +
-             'node["highway"="speed_camera"](area.a);\nout tags center;\n')
-        try:
-            j = overpass(q)
-        except Exception as e:
-            log(f"  {gem}: feste Anlagen nicht abrufbar ({e})")
-            continue
-        cams = [e for e in j.get("elements", []) if e.get("type") == "node"]
-        log(f"  {gem}: {len(cams)} feste Anlagen")
-        for e in cams:
-            t = e.get("tags", {})
-            out.append({"id": f"n{e['id']}", "lat": e["lat"], "lon": e["lon"],
-                        "place": gem, "maxspeed": t.get("maxspeed"),
-                        "kind": "red_light" if t.get("surveillance") == "red_light" else "speed",
-                        "road": None})
-        time.sleep(2)
-    if out:
-        name_roads(out)
+
+# ---------- Orte (für Ortsnamen und zum Einordnen der Straßen) ----------
+
+def all_places():
+    s, w, n, e = BBOX
+    q = (f'[out:json][timeout:90];\n'
+         f'node["place"~"^(city|town|village)$"]["name"]({s},{w},{n},{e});\nout tags center;\n')
+    try:
+        j = overpass(q)
+    except Exception as ex:
+        log(f"  Orte nicht abrufbar ({ex})")
+        return []
+    out = [{"name": el["tags"]["name"], "lat": el["lat"], "lon": el["lon"]}
+           for el in j.get("elements", []) if el.get("lat") and el.get("tags", {}).get("name")]
+    log(f"  {len(out)} Orte in der Region")
     return out
 
 
+def nearest_place(places, lat, lon):
+    best, bestd = None, 9e9
+    for p in places:
+        d = haversine(lat, lon, p["lat"], p["lon"])
+        if d < bestd:
+            best, bestd = p, d
+    return best["name"] if best else None
+
+
+# ---------- feste Anlagen ----------
+
+def fixed_cameras(places):
+    q = ('[out:json][timeout:120];\n' + AREAS +
+         '(node["highway"="speed_camera"](area.hf);node["highway"="speed_camera"](area.me););\n'
+         'out tags center;\n')
+    try:
+        j = overpass(q, timeout=120)
+    except Exception as e:
+        log(f"  Feste Anlagen nicht abrufbar ({e})")
+        return []
+    cams = []
+    for el in j.get("elements", []):
+        if el.get("type") != "node" or el.get("lat") is None:
+            continue
+        t = el.get("tags", {})
+        cams.append({"id": f"n{el['id']}", "lat": el["lat"], "lon": el["lon"],
+                     "place": nearest_place(places, el["lat"], el["lon"]),
+                     "maxspeed": t.get("maxspeed"),
+                     "kind": "red_light" if t.get("surveillance") == "red_light" else "speed",
+                     "road": None})
+    log(f"  {len(cams)} feste Anlagen")
+    if cams:
+        name_roads(cams)
+    return cams
+
+
 def name_roads(cams):
-    """Straßennamen für die festen Anlagen nachladen (in Blöcken, schont den Server)."""
-    for i in range(0, len(cams), 20):
-        block = cams[i:i + 20]
-        parts = ["[out:json][timeout:180];", "("]
+    """Straßennamen in wenigen Sammelabfragen nachladen."""
+    for i in range(0, len(cams), 40):
+        block = cams[i:i + 40]
+        parts = ["[out:json][timeout:120];", "("]
         for c in block:
             parts.append(f'way(around:45,{c["lat"]},{c["lon"]})["highway"]["name"];')
-        parts.append(");")
-        parts.append("out tags center;")
+        parts += [");", "out tags center;"]
         try:
-            j = overpass("\n".join(parts))
+            j = overpass("\n".join(parts), timeout=120)
         except Exception as e:
             log(f"  Straßennamen nicht abrufbar ({e})")
             return
@@ -145,20 +161,21 @@ def name_roads(cams):
                     best, bestd = w, d
             if best and bestd < 1.0:
                 c["road"] = best["tags"]["name"]
-        time.sleep(2)
+        time.sleep(1)
+    log(f"  {sum(1 for c in cams if c['road'])} davon mit Straßennamen")
 
 
-# ---------- angekündigte Messstellen: Kreis Herford ----------
+# ---------- angekündigte Messstellen ----------
 
 def kreis_herford():
     """<p><strong>Montag, 26.10.2026</strong></p> gefolgt von <p>• Ort, Straße</p>"""
     try:
-        doc = fetch(KH_URL)
+        doc = fetch(KH_URL, timeout=60)
     except Exception as e:
         log(f"  Kreis Herford nicht abrufbar: {e}")
         return []
-    body = re.split(r"Aktuelle\s*Kreisblitzer", doc, maxsplit=1)
-    body = body[1] if len(body) > 1 else doc
+    parts = re.split(r"Aktuelle\s*Kreisblitzer", doc, maxsplit=1)
+    body = parts[1] if len(parts) > 1 else doc
     out, cur = [], None
     for m in re.finditer(r"<p[^>]*>(.*?)</p>", body, re.S | re.I):
         line = strip_tags(m.group(1))
@@ -172,27 +189,19 @@ def kreis_herford():
                 cur = None
             continue
         e = re.match(r"^[•·\-\*]\s*(.+)$", line)
-        if e and cur:
-            txt = e.group(1).strip()
-            if "," in txt:
-                place, road = [x.strip() for x in txt.split(",", 1)]
-            else:
-                place, road = None, txt
-            if place:
+        if e and cur and "," in e.group(1):
+            place, road = [x.strip() for x in e.group(1).split(",", 1)]
+            if place and road:
                 out.append({"date": cur, "place": place, "road": road,
                             "src": "Kreis Herford", "lat": None, "lon": None})
-        elif cur is None and len(out) > 200:
-            break
     log(f"  Kreis Herford: {len(out)} angekündigte Messstellen")
     return out
 
 
-# ---------- angekündigte Messstellen: Landkreis Osnabrück ----------
-
 def lk_osnabrueck():
-    """'Geschwindigkeitsmessplan vom 21. Oktober bis 1. November 2026' + '21.10. Belm + 22.10. Ankum ...'"""
+    """'Geschwindigkeitsmessplan vom …' + '21.10. Belm + 22.10. Ankum + …'"""
     try:
-        doc = fetch(LKOS_URL)
+        doc = fetch(LKOS_URL, timeout=60)
     except Exception as e:
         log(f"  Landkreis Osnabrück nicht abrufbar: {e}")
         return []
@@ -203,15 +212,12 @@ def lk_osnabrueck():
     chunk = strip_tags(doc[i:i + 4000])
     years = re.findall(r"\b(20\d{2})\b", chunk[:200])
     year = int(years[0]) if years else datetime.now().year
-    # Monatswechsel im Plan: Dezember-Einträge gehören ggf. ins Vorjahr, Januar ins Folgejahr
     out = []
-    # Ortsname bis zum nächsten Trenner, nächsten Datum oder Textende
     for m in re.finditer(r"(\d{1,2})\.(\d{1,2})\.\s*([A-ZÄÖÜ][^+<\d]{1,30}?)"
                          r"(?=\s*(?:\+|\d{1,2}\.\d{1,2}\.|$|Hinweis))", chunk):
         dd, mm, place = int(m.group(1)), int(m.group(2)), m.group(3).strip(" .")
-        y = year
         try:
-            iso = date(y, mm, dd).isoformat()
+            iso = date(year, mm, dd).isoformat()
         except ValueError:
             continue
         out.append({"date": iso, "place": place, "road": None,
@@ -220,10 +226,10 @@ def lk_osnabrueck():
     return out
 
 
-# ---------- Straßen und Orte in Koordinaten umrechnen ----------
+# ---------- Straßen in Koordinaten umrechnen ----------
 
 def variants(road):
-    """Schreibweisen angleichen: 'Herforder Str.' / 'Industrie Straße' / 'Wiehen Straße'."""
+    """Schreibweisen angleichen: 'Herforder Str.' / 'Industrie Straße'."""
     v, seen = [], set()
 
     def add(x):
@@ -237,115 +243,100 @@ def variants(road):
     add(base)
     m = re.match(r"^(.*\S)\s+(Straße|Weg|Allee|Ring)$", base)
     if m:
-        add(m.group(1) + m.group(2).lower())      # Industrie Straße -> Industriestraße
-        add(m.group(1) + "-" + m.group(2))         # Industrie-Straße
+        add(m.group(1) + m.group(2).lower())
+        add(m.group(1) + "-" + m.group(2))
     m2 = re.match(r"^(.*?)(straße|weg|allee|ring)$", base, re.I)
     if m2 and m2.group(1) and " " not in base and "-" not in base:
         add(m2.group(1) + " " + m2.group(2).capitalize())
     return v
 
 
-def geocode(mobile, fixed_by_place):
-    """Ergänzt lat/lon für angekündigte Messstellen."""
-    todo = {}
+def geocode(mobile, places):
+    """Eine Sammelabfrage für alle gesuchten Straßen, Zuordnung über die Ortsnähe."""
+    wanted = {}          # Schreibvariante -> Originalname
     for e in mobile:
         if e["road"]:
-            todo.setdefault(e["place"], set()).add(e["road"])
-    known_kreis = {g: k for k, g in GEMEINDEN}
-    coords = {}
-    for place, roads in todo.items():
-        kreis = known_kreis.get(place)
-        if not kreis:
-            log(f"  {place}: keine Gemeinde im Suchgebiet, übersprungen")
-            continue
-        wanted = {}
-        for r in roads:
-            for v in variants(r):
-                wanted.setdefault(v, r)
-        parts = ["[out:json][timeout:180];", area_prolog(kreis, place), "("]
-        for v in wanted:
-            parts.append(f'way["highway"]["name"="{esc(v)}"](area.a);')
-            m = re.match(r"^([ABLK])\s?(\d{1,4})$", v)
-            if m:
-                parts.append(f'way["highway"]["ref"~"^{m.group(1)}\\\\s?{m.group(2)}$"](area.a);')
-        parts.append(");")
-        parts.append("out tags center;")
-        try:
-            j = overpass("\n".join(parts))
-        except Exception as e:
-            log(f"  {place}: Straßen nicht abrufbar ({e})")
-            continue
-        acc = {}
-        for w in j.get("elements", []):
-            c = w.get("center")
-            t = w.get("tags", {})
-            key = t.get("name") or t.get("ref")
-            if not c or not key:
-                continue
-            orig = wanted.get(key) or wanted.get((t.get("ref") or "").replace(" ", ""))
-            if not orig:
-                continue
-            acc.setdefault(orig, []).append((c["lat"], c["lon"]))
-        for road, pts in acc.items():
-            coords[(place, road)] = (sum(p[0] for p in pts) / len(pts),
-                                     sum(p[1] for p in pts) / len(pts))
-        log(f"  {place}: {len(acc)}/{len(roads)} Straßen gefunden")
-        time.sleep(2)
+            for v in variants(e["road"]):
+                wanted.setdefault(v, e["road"])
+    if not wanted:
+        return mobile
+    s, w, n, ea = BBOX
+    parts = ["[out:json][timeout:120];", "("]
+    for v in wanted:
+        parts.append(f'way["highway"]["name"="{esc(v)}"]({s},{w},{n},{ea});')
+        m = re.match(r"^([ABLK])\s?(\d{1,4})$", v)
+        if m:
+            parts.append(f'way["highway"]["ref"~"^{m.group(1)}\\\\s?{m.group(2)}$"]({s},{w},{n},{ea});')
+    parts += [");", "out tags center;"]
+    try:
+        j = overpass("\n".join(parts), timeout=120)
+    except Exception as e:
+        log(f"  Straßen nicht abrufbar ({e})")
+        return mobile
 
+    by_name = {}
+    for el in j.get("elements", []):
+        c, t = el.get("center"), el.get("tags", {})
+        key = t.get("name") or (t.get("ref") or "").replace(" ", "")
+        orig = wanted.get(key)
+        if c and orig:
+            by_name.setdefault(orig, []).append((c["lat"], c["lon"]))
+    log(f"  {len(by_name)} von {len({v for v in wanted.values()})} Straßennamen in OSM gefunden")
+
+    pl = {p["name"]: p for p in places}
+    hit = 0
     for e in mobile:
-        if e["road"] and (e["place"], e["road"]) in coords:
-            e["lat"], e["lon"] = coords[(e["place"], e["road"])]
+        if not e["road"] or e["road"] not in by_name:
+            continue
+        anchor = pl.get(e["place"])
+        if not anchor:
+            continue
+        near = [(haversine(anchor["lat"], anchor["lon"], la, lo), la, lo)
+                for la, lo in by_name[e["road"]]]
+        near = [x for x in near if x[0] <= MAX_PLACE_KM]
+        if not near:
+            continue
+        near.sort()
+        best = near[:max(1, len(near) // 2)]          # die dem Ort nächsten Abschnitte mitteln
+        e["lat"] = sum(x[1] for x in best) / len(best)
+        e["lon"] = sum(x[2] for x in best) / len(best)
+        hit += 1
+    log(f"  {hit} von {sum(1 for e in mobile if e['road'])} Messstellen verortet")
     return mobile
 
 
-def place_coords(names):
-    """Ortsmittelpunkte, um weit entfernte Orte auszusortieren."""
-    if not names:
-        return {}
-    parts = ["[out:json][timeout:120];", "("]
-    for n in names:
-        parts.append(f'node["place"~"^(city|town|village|suburb)$"]["name"="{esc(n)}"]'
-                     f'(51.8,7.8,52.7,9.0);')
-    parts.append(");")
-    parts.append("out tags center;")
-    try:
-        j = overpass("\n".join(parts))
-    except Exception as e:
-        log(f"  Ortsmittelpunkte nicht abrufbar ({e})")
-        return {}
-    out = {}
-    for e in j.get("elements", []):
-        n = e.get("tags", {}).get("name")
-        if n and n not in out and e.get("lat"):
-            out[n] = (e["lat"], e["lon"])
-    return out
-
-
-def confirm_center():
+def confirm_center(places):
+    for p in places:
+        if p["name"] == "Bruchmühlen":
+            CENTER["lat"], CENTER["lon"] = p["lat"], p["lon"]
+            log(f"  Mittelpunkt aus OSM: {p['lat']:.4f}, {p['lon']:.4f}")
+            return
     try:
         j = overpass('[out:json][timeout:60];node["place"]["name"="Bruchmühlen"]'
-                     '(52.0,8.2,52.4,8.7);out center 1;')
-        for e in j.get("elements", []):
-            if e.get("lat"):
-                CENTER["lat"], CENTER["lon"] = e["lat"], e["lon"]
-                log(f"  Mittelpunkt aus OSM: {CENTER['lat']:.4f}, {CENTER['lon']:.4f}")
+                     '(52.0,8.2,52.4,8.7);out center 1;', timeout=60)
+        for el in j.get("elements", []):
+            if el.get("lat"):
+                CENTER["lat"], CENTER["lon"] = el["lat"], el["lon"]
+                log(f"  Mittelpunkt aus OSM: {el['lat']:.4f}, {el['lon']:.4f}")
                 return
     except Exception as e:
         log(f"  Mittelpunkt nicht bestätigt, nehme Standardwert ({e})")
 
 
 def main(path):
+    t0 = time.time()
     try:
         with open(path, encoding="utf-8") as f:
             old = json.load(f)
     except Exception:
         old = {}
 
-    log("Mittelpunkt prüfen …")
-    confirm_center()
+    log("Orte und Mittelpunkt …")
+    places = all_places()
+    confirm_center(places)
 
     log("Feste Anlagen aus OpenStreetMap …")
-    fixed = fixed_cameras()
+    fixed = fixed_cameras(places)
     if not fixed and old.get("fixed"):
         log("  nichts bekommen, behalte den alten Stand")
         fixed = old["fixed"]
@@ -354,21 +345,21 @@ def main(path):
     mobile = kreis_herford() + lk_osnabrueck()
 
     # Orte außerhalb des Umkreises aussortieren (betrifft vor allem den Landkreis Osnabrück)
-    unknown = sorted({e["place"] for e in mobile if e["place"] not in {g for _, g in GEMEINDEN}})
-    pc = place_coords(unknown) if unknown else {}
+    pl = {p["name"]: p for p in places}
     keep = []
     for e in mobile:
-        if e["place"] in {g for _, g in GEMEINDEN}:
+        p = pl.get(e["place"])
+        if not p:
+            if e["src"] == "Kreis Herford":
+                keep.append(e)      # Ort unbekannt, Eintrag bleibt ohne Entfernung
+            continue
+        if haversine(CENTER["lat"], CENTER["lon"], p["lat"], p["lon"]) <= NEAR_KM:
+            e["lat"], e["lon"] = p["lat"], p["lon"]
             keep.append(e)
-        elif e["place"] in pc:
-            lat, lon = pc[e["place"]]
-            if haversine(CENTER["lat"], CENTER["lon"], lat, lon) <= NEAR_KM:
-                e["lat"], e["lon"] = lat, lon
-                keep.append(e)
     mobile = keep
 
     log("Straßen in Koordinaten umrechnen …")
-    mobile = geocode(mobile, {})
+    mobile = geocode(mobile, places)
 
     today = date.today().isoformat()
     mobile = [e for e in mobile if e["date"] >= today]
@@ -377,6 +368,10 @@ def main(path):
     for c in fixed:
         c["km"] = round(haversine(CENTER["lat"], CENTER["lon"], c["lat"], c["lon"]), 2)
     fixed.sort(key=lambda c: c["km"])
+
+    if not fixed and not mobile:
+        log("Keine Daten – blitzer.json bleibt unverändert.")
+        return 1
 
     data = {
         "updated": int(datetime.now(timezone.utc).timestamp()),
@@ -392,13 +387,11 @@ def main(path):
              "note": "Geschwindigkeitsmessplan, nur Tag und Ort"},
         ],
     }
-    if not fixed and not mobile:
-        log("Keine Daten – blitzer.json bleibt unverändert.")
-        return 1
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
         f.write("\n")
-    log(f"Fertig: {len(fixed)} feste Anlagen, {len(mobile)} angekündigte Messstellen.")
+    log(f"Fertig in {time.time()-t0:.0f}s: {len(fixed)} feste Anlagen, "
+        f"{len(mobile)} angekündigte Messstellen.")
     return 0
 
 
