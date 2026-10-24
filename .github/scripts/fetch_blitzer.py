@@ -13,13 +13,13 @@ kleiner, damit der Lauf schnell bleibt. Nur Standardbibliothek.
 import json, re, sys, html, time, math, urllib.request, urllib.parse
 from datetime import datetime, timezone, date
 
-UA = "Mozilla/5.0 (compatible; ArbeitsTag-BlitzerBot/1.0; +https://github.com/sasha-apps)"
-# Mehrere Spiegel, weil der Hauptserver Anfragen aus Rechenzentren oft abweist
-OVERPASS = ["https://overpass.kumi.systems/api/interpreter",
+UA = "ArbeitsTag/1.0 (+https://github.com/sasha-apps/Arbeitstag)"
+# Reihenfolge nach gemessener Erreichbarkeit aus GitHub Actions (siehe netztest)
+OVERPASS = ["https://overpass.osm.ch/api/interpreter",
             "https://overpass-api.de/api/interpreter",
-            "https://overpass.private.coffee/api/interpreter",
-            "https://overpass.osm.jp/api/interpreter"]
-PHOTON = "https://photon.komoot.io/api/"   # Ausweichweg nur fürs Geokodieren
+            "https://overpass.kumi.systems/api/interpreter"]
+PHOTON = "https://photon.komoot.io/api/?"              # Ausweichwege nur fürs Geokodieren
+NOMINATIM = "https://nominatim.openstreetmap.org/search?"
 
 KH_URL = "https://www.kreis-herford.de/Startseite/Blitzer/"
 LKOS_URL = "https://www.landkreis-osnabrueck.de/fachthemen/ordnung-und-verkehr/baustellen-und-blitzplan"
@@ -325,34 +325,43 @@ def photon_fill(mobile):
     todo = [e for e in mobile if e["road"] and e["lat"] is None]
     if not todo:
         return
-    cache, hit = {}, 0
+    cache, hit, errs = {}, 0, 0
     for e in todo:
         key = (e["place"], e["road"])
         if key not in cache:
-            try:
-                url = PHOTON + urllib.parse.urlencode(
-                    {"q": f'{e["road"]}, {e["place"]}', "limit": 5, "lang": "de"})
-                j = json.loads(fetch(url, tries=1, timeout=30))
-                pick = None
-                for ft in j.get("features", []):
-                    p = ft.get("properties", {})
-                    g = ft.get("geometry", {}).get("coordinates")
-                    if not g:
-                        continue
-                    if p.get("osm_key") == "highway" or p.get("street") or p.get("name"):
-                        d = haversine(CENTER["lat"], CENTER["lon"], g[1], g[0])
-                        if d <= NEAR_KM + 15:
-                            pick = (g[1], g[0])
-                            break
-                cache[key] = pick
-            except Exception as ex:
-                cache[key] = None
-                log(f"  Photon für {e['road']} ({e['place']}) fehlgeschlagen: {ex}")
+            cache[key] = lookup_street(e["road"], e["place"])
+            if cache[key] is None:
+                errs += 1
             time.sleep(1.2)
         if cache[key]:
             e["lat"], e["lon"] = cache[key]
             hit += 1
-    log(f"  {hit} weitere Messstellen über Photon verortet")
+    log(f"  {hit} weitere Messstellen über Photon/Nominatim verortet, {errs} ohne Treffer")
+
+
+def lookup_street(road, place):
+    """Eine Straße über Photon suchen, sonst über Nominatim."""
+    try:
+        url = PHOTON + urllib.parse.urlencode(
+            {"q": f"{road}, {place}", "limit": 8, "lang": "de"})
+        for ft in json.loads(fetch(url, tries=1, timeout=30)).get("features", []):
+            p, g = ft.get("properties", {}), ft.get("geometry", {}).get("coordinates")
+            if not g or p.get("osm_key") != "highway":
+                continue
+            if haversine(CENTER["lat"], CENTER["lon"], g[1], g[0]) <= NEAR_KM + 15:
+                return (g[1], g[0])
+    except Exception as ex:
+        log(f"  Photon für {road} ({place}): {ex}")
+    try:
+        url = NOMINATIM + urllib.parse.urlencode(
+            {"q": f"{road}, {place}", "format": "json", "limit": 5, "countrycodes": "de"})
+        for r in json.loads(fetch(url, tries=1, timeout=30)):
+            la, lo = float(r["lat"]), float(r["lon"])
+            if haversine(CENTER["lat"], CENTER["lon"], la, lo) <= NEAR_KM + 15:
+                return (la, lo)
+    except Exception as ex:
+        log(f"  Nominatim für {road} ({place}): {ex}")
+    return None
 
 
 def confirm_center(places):
@@ -438,7 +447,7 @@ def main(path):
             {"name": "Landkreis Osnabrück", "url": LKOS_URL,
              "note": "Geschwindigkeitsmessplan, nur Tag und Ort"},
         ],
-        "_diag": DIAG[-40:],
+        "_diag": DIAG[-80:],
     }
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
