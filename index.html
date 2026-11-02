@@ -119,14 +119,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;pa
 /* tabs */
 nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:10;
   padding:4px max(8px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
-nav .in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+nav .in{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:2px}
 nav button{background:transparent;font-size:12.5px;color:var(--muted);min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;border-radius:12px;transition:background .25s ease,color .2s ease}
 nav button[aria-selected="true"]{background:var(--accent-soft)}
 nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav button[aria-selected="true"]{color:var(--accent)}
 nav .dot{position:absolute;top:6px;left:calc(50% + 8px);width:8px;height:8px;border-radius:50%;background:var(--accent)}
-body.welt .add,body.region .add{display:none}
-body.welt,body.region{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+body.welt .add,body.region .add,body.gym .add{display:none}
+body.welt,body.region,body.gym{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
 /* sheet */
 .sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center}
 .sheet-in{background:var(--surface);width:100%;max-width:620px;max-height:85vh;overflow-y:auto;border-radius:18px 18px 0 0;display:flex;flex-direction:column;gap:12px;
@@ -211,6 +211,25 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
 .bh-row span.no{color:var(--muted)}
 .bh-row[aria-current="true"]{background:var(--accent-soft)}
 #bhText{font:16px/1.45 var(--body);min-height:150px}
+/* Gym: eine Karte je Übung, eine Zeile je Satz mit Haken, kg und Wiederholungen */
+.gx-h{padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.gx-n{font:600 17px var(--display)}
+.gx-m{font-size:12.5px;color:var(--muted)}
+.gx-l{font-size:13px;color:var(--fg2);margin-top:4px}
+.gx-up{font-size:13px;color:var(--done);font-weight:600;margin-top:2px}
+.gset{display:grid;grid-template-columns:44px auto minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:6px;padding:4px 12px 4px 6px;border-bottom:1px solid var(--line)}
+.gset:last-child{border-bottom:0}
+.gset input{min-height:40px;padding:6px 8px;text-align:center}
+.gset.ok input{background:var(--done-soft);border-color:transparent}
+.gs-n{font-size:13px;color:var(--muted);min-width:44px}
+.gs-x{font-size:13px;color:var(--muted)}
+.gh{display:grid;grid-template-columns:76px minmax(0,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14.5px}
+.gh:last-child{border-bottom:0}
+.gh b{color:var(--fg2);font-weight:600}
+.rest{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:11;background:var(--fg);color:var(--bg);border-radius:99px;
+  padding:4px 4px 4px 16px;display:flex;align-items:center;gap:2px;font-weight:600;box-shadow:var(--shadow);width:max-content;max-width:calc(100% - 32px);box-sizing:border-box}
+.rest button{min-height:36px;padding:4px 10px;background:transparent;color:var(--accent-inv)}
+#gPlanTx{min-height:320px;font-size:15px}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -256,6 +275,14 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
     <p class="w-note">Regionale Meldungen von NW, Westfalen-Blatt, NOZ, Radio Herford, os|radio und weiteren, gesammelt über Google News. Antippen öffnet den Artikel beim Anbieter.</p>
   </section>
 
+  <section id="v-gym" class="view" hidden>
+    <div class="w-head"><h2>Gym</h2><span class="sub num" id="gStand"></span></div>
+    <div class="chips" role="group" aria-label="Trainingstag wählen" id="gDays"></div>
+    <div class="view" id="gBody"></div>
+    <div class="sec" id="gHistSec"><div class="sec-h"><span>Letzte Trainings</span></div><div class="list" id="gHist"></div></div>
+    <p class="w-note">2-5-15: jeder Muskel 2× pro Woche, höchstens 5 Sätze pro Muskel und 15 Sätze pro Training. Jeder Satz hart, kurz vor dem Versagen.</p>
+  </section>
+
 </main>
 
 <div class="add" id="addWrap"><form id="addForm" autocomplete="off">
@@ -267,6 +294,7 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
   <button role="tab" data-v="heute" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/></svg>Heute</button>
   <button role="tab" data-v="welt" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5s1.1-5.9 3.6-8.5z"/></svg>Welt<span class="dot" id="weltDot" hidden></span></button>
   <button role="tab" data-v="region" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>Region<span class="dot" id="regionDot" hidden></span></button>
+  <button role="tab" data-v="gym" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M6.5 7.5v9M17.5 7.5v9M3.5 10v4M20.5 10v4M6.5 12h11"/></svg>Gym</button>
 </div></nav>
 
 <div class="sheet" id="sheet" hidden><div class="sheet-in" role="dialog" aria-modal="true" aria-label="Einstellungen">
@@ -301,6 +329,14 @@ video.scan{width:100%;max-height:50vh;border-radius:12px;background:#000;object-
   <div class="list" id="bhWeek"></div>
   <p class="sub" style="margin:0;line-height:1.5">Mit Abgleich landen die Einträge verschlüsselt in deinem privaten Repo. Auf dem Laptop holt <code>tools/berichtsheft_import.py</code> sie in die Tagesnotizen im Vault. Ohne Abgleich: „Woche kopieren“ und an Claude geben.</p>
 </div></div>
+<div class="sheet" id="gSheet" hidden><div class="sheet-in" role="dialog" aria-modal="true" aria-label="Trainingsplan">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2>Trainingsplan</h2><button class="ghost small" id="gClose">Schließen</button></div>
+  <p class="sub" style="margin:0;line-height:1.5">Eine Zeile pro Übung: <b>Name | Sätze | Wiederholungen</b>. Ein neuer Trainingstag beginnt mit <b>#</b>. Gleicher Übungsname = gleicher Verlauf.</p>
+  <textarea id="gPlanTx" aria-label="Trainingsplan als Text" spellcheck="false"></textarea>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="gPlanSave">Speichern</button><button id="gPlanReset">Vorschlag 2-5-15 einsetzen</button></div>
+  <div class="msg" id="gPlanMsg" role="status"></div>
+</div></div>
+<div class="rest" id="gRest" hidden role="status"><span class="num" id="gRestT"></span><button id="gRestPlus">+30 s</button><button id="gRestX">Fertig</button></div>
 <div class="toast" id="toast" hidden role="status"><span id="toastTxt"></span><button id="toastBtn" hidden>Rückgängig</button></div>
 
 <script>
@@ -527,7 +563,7 @@ $('addForm').onsubmit=e=>{e.preventDefault();const v=$('addIn').value;if(!v.trim
 function toast(t,undoFn){const e=$('toast');$('toastTxt').textContent=t;const b=$('toastBtn');b.hidden=!undoFn;b.onclick=()=>{e.hidden=true;undoFn&&undoFn()};e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,undoFn?4500:2200)}
 
 /* ---------- Sicherung ---------- */
-const backupJSON=()=>JSON.stringify({app:'arbeitstag',version:1,saved:new Date().toISOString(),tasks:S.tasks,log:S.log,favs:typeof FAVS!=='undefined'?[...FAVS.values()]:[]});
+const backupJSON=()=>JSON.stringify({app:'arbeitstag',version:1,saved:new Date().toISOString(),tasks:S.tasks,log:S.log,favs:typeof FAVS!=='undefined'?[...FAVS.values()]:[],gym:GY});
 function markBackup(){S.lastBackup=Date.now();save();bkInfo()}
 function bkInfo(){const lb=S.lastBackup?new Date(S.lastBackup).toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'}):null;
   $('bkInfo').textContent=(typeof CFG!=='undefined'&&CFG?'Deine Aufgaben werden verschlüsselt mit deinen anderen Geräten abgeglichen. Eine Sicherung als Datei schadet trotzdem nicht. ':'Deine Aufgaben liegen nur auf diesem Gerät. Speichere ab und zu eine Sicherung in der Dateien-App. ')+(lb?'Letzte Sicherung: '+lb+'.':'Noch keine Sicherung gespeichert.')}
@@ -540,6 +576,7 @@ async function saveBackup(){const name=`arbeitstag-sicherung-${todayISO()}.json`
 function restore(txt){const m=$('bkMsg');try{const d=JSON.parse(txt);if(d.app!=='arbeitstag'||!Array.isArray(d.tasks))throw 0;
   S={demo:false,tasks:d.tasks,log:d.log||[],del:S.del||{},lastBackup:Date.now()};save();render();bkInfo();
   if(Array.isArray(d.favs)&&d.favs.length){d.favs.forEach(f=>{FAVS.set(f.id,f);delete FDEL[f.id]});fdelSave();idbWrite('favs',d.favs,[]);syncSoon()}
+  if(d.gym&&d.gym.plan){GY={plan:d.gym.plan,s:d.gym.s||{}};gyStore();gySoon()}
   m.className='msg';m.textContent=`Wiederhergestellt: ${S.tasks.length} Aufgaben`+(d.favs&&d.favs.length?`, ${d.favs.length} Favoriten.`:'.')}
   catch(e){m.className='msg err';m.textContent='Das ist keine gültige ArbeitsTag-Sicherung.'}}
 let restoreArm=false;
@@ -558,10 +595,11 @@ $('clearDemo').onclick=()=>{S={demo:false,tasks:[],log:[],del:{},lastBackup:S.la
 let cur='heute';
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showTab(b.dataset.v));
 function showTab(v){cur=v;document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));
-  $('v-heute').hidden=v!=='heute';$('v-welt').hidden=v!=='welt';$('v-region').hidden=v!=='region';
-  document.body.classList.toggle('welt',v==='welt');document.body.classList.toggle('region',v==='region');
+  $('v-heute').hidden=v!=='heute';$('v-welt').hidden=v!=='welt';$('v-region').hidden=v!=='region';$('v-gym').hidden=v!=='gym';
+  document.body.classList.toggle('welt',v==='welt');document.body.classList.toggle('region',v==='region');document.body.classList.toggle('gym',v==='gym');
   try{localStorage.setItem(KEY+'-tab',v)}catch(e){}
   if(v==='heute'&&window.refreshBrief)refreshBrief();
+  else if(v==='gym')renderGym();
   else if(v!=='heute'&&window.renderWelt)renderWelt();
   window.scrollTo(0,0)}
 /* ---------- Nachrichten: Archiv (4 Wochen), Suche, Favoriten, Bilder ---------- */
@@ -1135,10 +1173,98 @@ $('bhCopy').onclick=()=>{bhKeep();const ws=addDays(bhDay,-((D(bhDay).getDay()+6)
   const txt=`Berichtsheft KW ${kw(bhDay)}\n`+[0,1,2,3,4].map(i=>{const d=addDays(ws,i);return `\n${wdShort(d)}:\n`+(bhText(d)||'–')}).join('\n');
   const m=$('bhMsg');m.className='msg';try{navigator.clipboard.writeText(txt).then(()=>{m.textContent='Woche kopiert.'},()=>{m.textContent='Kopieren ging nicht.'})}catch(e){m.textContent='Kopieren ging nicht.'}};
 
+/* ---------- Gym: Plan nach 2-5-15, jeden Satz abhaken, verschlüsselt abgeglichen als gym.sync ---------- */
+const GKEY=KEY+'-gym',GY_FILE='gym.sync',REST=90;
+// Torso-Tag wie im Video von Lennart Kleber, Limbs-Tag nach derselben Regel (je Muskel höchstens 5 Sätze, zusammen 15)
+const GDEF=[['Torso',[['Seitheben',3,'12–15'],['Schrägbankdrücken',2,'6–10'],['Rudern brustgestützt, breit',3,'8–12'],['Butterfly',3,'10–15'],['Latziehen',2,'8–12'],['Reverse Butterfly',2,'12–15']]],
+  ['Limbs',[['Beinpresse',3,'8–12'],['Rumänisches Kreuzheben',2,'6–10'],['Beinbeuger',2,'10–15'],['Curls an der Schrägbank',3,'8–12'],['Trizeps über Kopf am Kabel',3,'10–15'],['Wadenheben',2,'10–15']]]];
+const gId=name=>'e-'+name.toLowerCase().replace(/[^a-z0-9äöüß]+/g,'-'); // gleicher Übungsname = gleicher Verlauf
+const gPlanDef=()=>({u:0,days:GDEF.map(([name,ex])=>({id:'d-'+name.toLowerCase(),name,ex:ex.map(([n,s,r])=>({id:gId(n),name:n,sets:s,reps:r}))}))});
+let GY={plan:null,s:{}};try{GY=JSON.parse(localStorage.getItem(GKEY)||'null')||GY}catch(e){}if(!GY.plan)GY.plan=gPlanDef();GY.s=GY.s||{};
+const gyStore=()=>{try{localStorage.setItem(GKEY,JSON.stringify(GY))}catch(e){}};
+const G={day:null,t:null,end:0};
+const gNum=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:null};
+const gFmt=n=>n==null?'':String(n).replace('.',',');
+const gTop=r=>{const m=String(r).match(/(\d+)\D*$/);return m?+m[1]:null};
+const gLow=r=>{const m=String(r).match(/\d+/);return m?+m[0]:null};
+const gOk=s=>Object.values(s.ex||{}).some(a=>a.some(x=>x&&x.ok));
+function gSess(day,make){const id=todayISO()+'-'+day;let s=GY.s[id];if(!s&&make)s=GY.s[id]={id,date:todayISO(),day,ex:{},u:Date.now()};return s}
+function gLast(exId,skip){return Object.values(GY.s).filter(s=>s.id!==skip&&s.ex[exId]&&s.ex[exId].some(x=>x&&x.ok)).sort((a,b)=>a.date<b.date?1:-1)[0]}
+function gDefaultDay(){const days=GY.plan.days,t=todayISO(),today=days.find(d=>GY.s[t+'-'+d.id]);if(today)return today.id;
+  const last=Object.values(GY.s).filter(s=>s.date<t&&gOk(s)).sort((a,b)=>a.date<b.date?1:-1)[0];
+  if(!last)return days[0].id;const i=days.findIndex(d=>d.id===last.day);return days[(i+1)%days.length].id} // im Wechsel: nach Torso kommt Limbs
+function gTouch(s){s.u=Date.now();gyStore();gySoon()}
+function gRest(add){if(add)G.end=Math.max(G.end,Date.now())+add*1000;else G.end=Date.now()+REST*1000;clearInterval(G.t);$('gRest').hidden=false;
+  const tick=()=>{const s=Math.ceil((G.end-Date.now())/1000);
+    if(s<=0){clearInterval(G.t);$('gRestT').textContent='Pause vorbei';if(navigator.vibrate)try{navigator.vibrate([80,60,80])}catch(e){}setTimeout(()=>{if(Date.now()>=G.end)$('gRest').hidden=true},5000);return}
+    $('gRestT').textContent=`Pause ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};tick();G.t=setInterval(tick,500)}
+$('gRestPlus').onclick=()=>gRest(30);$('gRestX').onclick=()=>{clearInterval(G.t);G.end=0;$('gRest').hidden=true};
+function renderGym(){const days=GY.plan.days;if(!days.length)return;if(!days.find(d=>d.id===G.day))G.day=gDefaultDay();
+  const ch=$('gDays');ch.replaceChildren();
+  days.forEach(d=>{const b=mk('button','chip',d.name);b.setAttribute('aria-pressed',d.id===G.day);b.onclick=()=>{G.day=d.id;renderGym()};ch.append(b)});
+  const pb=mk('button','chip','Plan ändern');pb.onclick=gPlanOpen;ch.append(pb);
+  const day=days.find(d=>d.id===G.day),s=gSess(day.id),box=$('gBody');box.replaceChildren();let total=0,done=0,vol=0;
+  day.ex.forEach(e=>{const cur=(s&&s.ex[e.id])||[],last=gLast(e.id,s&&s.id),lw=last?last.ex[e.id]:[],lastOk=lw.filter(x=>x&&x.ok);
+    const card=mk('div','list'),h=mk('div','gx-h');h.append(mk('div','gx-n',e.name),mk('div','gx-m',`${e.sets} Sätze × ${e.reps} Wdh.`));
+    if(lastOk.length){h.append(mk('div','gx-l',`Letztes Mal (${dayLabel(last.date)}): `+lastOk.map(x=>`${gFmt(x.w)||'–'} kg × ${x.r??'–'}`).join(', ')));
+      const top=gTop(e.reps);if(top&&lastOk.length>=e.sets&&lastOk.every(x=>x.r>=top))h.append(mk('div','gx-up','Alle Wiederholungen geschafft: heute 2,5 kg mehr probieren'))}
+    card.append(h);
+    for(let i=0;i<e.sets;i++){const v=cur[i]||{},hist=lw[i]||lastOk[lastOk.length-1]||{},prev=cur.slice(0,i).reverse().find(x=>x&&x.ok)||{};
+      // Vorschlag: Gewicht wie der Satz davor, Wiederholungen wie letztes Mal
+      const pv={w:prev.w??hist.w,r:hist.r??prev.r};total++;if(v.ok){done++;vol+=(v.w||0)*(v.r||0)}
+      const row=mk('div','gset'+(v.ok?' ok':'')),c=mk('button','chk'+(v.ok?' on':''));c.innerHTML=CHK;c.setAttribute('aria-label',`${e.name}, Satz ${i+1} `+(v.ok?'wieder öffnen':'geschafft'));
+      const w=mk('input');w.inputMode='decimal';w.placeholder=pv.w!=null?gFmt(pv.w):'kg';w.value=gFmt(v.w);w.setAttribute('aria-label',`Satz ${i+1}: Gewicht in kg`);
+      const r=mk('input');r.inputMode='numeric';r.placeholder=pv.r!=null?String(pv.r):String(gLow(e.reps)||'');r.value=v.r??'';r.setAttribute('aria-label',`Satz ${i+1}: Wiederholungen`);
+      const slot=()=>{const ss=gSess(day.id,true),a=ss.ex[e.id]=ss.ex[e.id]||[];for(let j=0;j<=i;j++)a[j]=a[j]||{};return [ss,a[i]]};
+      w.onchange=()=>{const [ss,x]=slot();x.w=gNum(w.value);gTouch(ss)};r.onchange=()=>{const [ss,x]=slot();x.r=gNum(r.value);gTouch(ss)};
+      c.onclick=()=>{const [ss,x]=slot();
+        if(x.ok){x.ok=false;gTouch(ss);renderGym();return}
+        x.w=gNum(w.value)??gNum(w.placeholder);x.r=gNum(r.value)??gNum(r.placeholder);x.ok=true;gTouch(ss);
+        if(navigator.vibrate)try{navigator.vibrate(15)}catch(err){}
+        renderGym();gRest()};
+      row.append(c,mk('span','gs-n',`Satz ${i+1}`),w,mk('span','gs-x','kg ×'),r);card.append(row)}
+    box.append(card)});
+  $('gStand').textContent=`${done} von ${total} Sätzen`;
+  if(total&&done===total){const c=mk('div','calm');c.append(mk('b',null,'Training geschafft.'),mk('span',null,`${total} Sätze, ${Math.round(vol).toLocaleString('de-DE')} kg bewegt.`));box.prepend(c);
+    if(s&&!s.fin){s.fin=Date.now();gTouch(s)}}
+  const list=Object.values(GY.s).filter(gOk).sort((a,b)=>a.date<b.date?1:-1).slice(0,8),hl=$('gHist');hl.replaceChildren();$('gHistSec').hidden=!list.length;
+  list.forEach(x=>{const d=days.find(k=>k.id===x.day);let n=0,v=0;Object.values(x.ex).forEach(a=>a.forEach(y=>{if(y&&y.ok){n++;v+=(y.w||0)*(y.r||0)}}));
+    const row=mk('div','gh');row.append(mk('b',null,wdShort(x.date)),mk('span',null,`${d?d.name:'Training'} · ${n} ${n===1?'Satz':'Sätze'} · ${Math.round(v).toLocaleString('de-DE')} kg`));hl.append(row)})}
+/* Plan als Text bearbeiten: „# Tag“, darunter „Name | Sätze | Wiederholungen“ */
+const gPlanText=p=>p.days.map(d=>'# '+d.name+'\n'+d.ex.map(e=>`${e.name} | ${e.sets} | ${e.reps}`).join('\n')).join('\n\n');
+function gPlanParse(tx){const days=[],oldDay=new Map(GY.plan.days.map(d=>[d.name.toLowerCase(),d.id]));let cur=null;
+  for(const raw of tx.split('\n')){const l=raw.trim();if(!l)continue;
+    if(l.startsWith('#')){const name=l.replace(/^#+\s*/,'')||'Training';cur={id:oldDay.get(name.toLowerCase())||'d-'+uid(),name,ex:[]};days.push(cur);continue}
+    if(!cur){cur={id:'d-'+uid(),name:'Training',ex:[]};days.push(cur)}
+    const p=l.split('|').map(x=>x.trim());if(!p[0])continue;
+    cur.ex.push({id:gId(p[0]),name:p[0],sets:Math.min(10,Math.max(1,parseInt(p[1],10)||3)),reps:p[2]||'8–12'})}
+  return days.filter(d=>d.ex.length)}
+function gPlanOpen(){$('gPlanTx').value=gPlanText(GY.plan);$('gPlanMsg').textContent='';$('gSheet').hidden=false}
+const gPlanClose=()=>{$('gSheet').hidden=true};
+$('gClose').onclick=gPlanClose;$('gSheet').onclick=e=>{if(e.target===$('gSheet'))gPlanClose()};
+$('gPlanReset').onclick=()=>{$('gPlanTx').value=gPlanText(gPlanDef());$('gPlanMsg').className='msg';$('gPlanMsg').textContent='Vorschlag eingesetzt. Zum Übernehmen „Speichern“ tippen.'};
+$('gPlanSave').onclick=()=>{const days=gPlanParse($('gPlanTx').value),m=$('gPlanMsg');
+  if(!days.length){m.className='msg err';m.textContent='Kein Training erkannt. Beispiel: „# Torso“ und darunter „Seitheben | 3 | 12–15“.';return}
+  GY.plan={u:Date.now(),days};gyStore();gySoon();G.day=null;renderGym();m.className='msg';m.textContent=`Gespeichert: ${days.length} Trainingstage.`};
+/* Abgleich wie beim Berichtsheft: je Training gewinnt die neueste Änderung, beim Plan ebenso */
+function gyMerge(a,b){const s={...(a.s||{})};for(const k in b.s||{})if(!s[k]||(b.s[k].u||0)>(s[k].u||0))s[k]=b.s[k];
+  const pa=a.plan||{u:-1},pb=b.plan||{u:-1};return {plan:(pb.u||0)>(pa.u||0)?pb:pa,s}}
+let gyBusy=false,gyT=null,gyLast=0;
+async function gySync(){if(!CFG||!CFG.key||IN_ARTIFACT||gyBusy)return;gyBusy=true;
+  try{const key=await keyFrom(CFG.key);
+    for(let i=0;i<3;i++){const rem=await remoteGet(CFG,GY_FILE);let remote={s:{}};
+      if(rem){if(rem.env.salt!==CFG.salt)throw syncErr('pass');remote=await unseal(rem.env,key)}
+      const m=gyMerge(remote,GY);if(canon(m)!==canon(GY)){GY=m;gyStore();if(cur==='gym'&&!$('v-gym').contains(document.activeElement))renderGym()}
+      if(rem&&canon(m)===canon(remote))break;
+      if(await remotePut(CFG,await seal(m,key,CFG.salt),rem&&rem.sha,GY_FILE))break}
+    gyLast=Date.now()}catch(e){}
+  gyBusy=false}
+function gySoon(){if(!CFG||IN_ARTIFACT)return;clearTimeout(gyT);gyT=setTimeout(gySync,4000)}
+
 /* ---------- Start ---------- */
 load();snapInit();render();
-let st='heute';try{st=localStorage.getItem(KEY+'-tab')||'heute'}catch(e){}showTab(['welt','region'].includes(st)?st:'heute');
-if(CFG){setSync('');syncNow();setTimeout(bhSync,4000)}
+let st='heute';try{st=localStorage.getItem(KEY+'-tab')||'heute'}catch(e){}showTab(['welt','region','gym'].includes(st)?st:'heute');
+if(CFG){setSync('');syncNow();setTimeout(bhSync,4000);setTimeout(gySync,6000)}
 syncMuell();loadMuell();renderBrief();
 let lastDay=todayISO();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(todayISO()!==lastDay){lastDay=todayISO();openEdit=null;syncMuell()}render();if(cur==='heute')refreshBrief();else if(window.renderWelt)renderWelt();if(CFG&&Date.now()-bhLast>10*60000)bhSync()}});
