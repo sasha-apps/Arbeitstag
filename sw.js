@@ -1,12 +1,12 @@
-const V='arbeitstag-8';
+const V='arbeitstag-9';
 const CORE=['./','index.html','manifest.json','icon-180.png','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(CORE.map(u=>fetch(new Request(u,{cache:'reload'})).then(r=>{if(r.ok)return c.put(u,r)}).catch(()=>{})))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
   const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.origin!==location.origin)return;
-  const fresh=r.mode==='navigate'||/\/$|index\.html$|(news|blitzer|muell)\.json$/.test(u.pathname);
-  if(fresh){ // App-Seite, Nachrichten, Blitzer und Müll: zuerst aus dem Netz, offline aus dem Speicher
-    const j=u.pathname.match(/(news|blitzer|muell)\.json$/),key=j?j[0]:'./';
+  const fresh=r.mode==='navigate'||/\/$|index\.html$|(news|muell)\.json$/.test(u.pathname);
+  if(fresh){ // App-Seite, Nachrichten und Müll: zuerst aus dem Netz, offline aus dem Speicher
+    const j=u.pathname.match(/(news|muell)\.json$/),key=j?j[0]:'./';
     e.respondWith(fetch(r,{cache:'no-store'}).then(res=>{if(res.ok){const cp=res.clone();caches.open(V).then(c=>c.put(key,cp))}return res})
       .catch(()=>caches.match(key).then(h=>h||caches.match('index.html'))));return}
   e.respondWith(caches.open(V).then(async c=>{const hit=await c.match(r);

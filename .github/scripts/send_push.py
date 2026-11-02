@@ -26,7 +26,7 @@ TOKEN = os.environ.get("DATA_TOKEN", "").strip()
 WINDOW = 2 * 3600          # später als 2 Std. wird nichts mehr verschickt
 KEEP_IDS = 3 * 86400       # gesendete IDs so lange merken
 BERLIN = ZoneInfo("Europe/Berlin")
-HOME = (52.2003, 8.4554)   # Bruchmühlen; mit Arbeitsweg der Startpunkt der Strecke
+HOME = (52.2003, 8.4554)   # Bruchmühlen
 WARN_HOURS = (19, 22)      # Warnung am Vorabend zwischen 19 und 22 Uhr
 UA = "ArbeitsTag-Push/1.0 (+https://sasha-apps.github.io/Arbeitstag/)"
 
@@ -241,8 +241,7 @@ FREEZE = {56, 57, 66, 67, 71, 73, 75, 77, 85, 86}
 
 
 def wx_point(cfg):
-    line = (cfg.get("rt") or {}).get("line") or []
-    return (line[0][0], line[0][1]) if line else HOME
+    return HOME
 
 
 def forecast(lat, lon):
